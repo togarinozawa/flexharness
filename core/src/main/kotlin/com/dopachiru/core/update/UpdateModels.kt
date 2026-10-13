@@ -37,6 +37,7 @@ data class ReleaseBuild(
 data class LatestRelease(
     val android: ReleaseBuild? = null,
     val windows: ReleaseBuild? = null,
+    val linux: ReleaseBuild? = null,
     /** リリースに書いた説明。長いので端末側で畳んで出します。 */
     val notes: String = "",
     val publishedAt: String = "",

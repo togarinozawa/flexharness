@@ -152,6 +152,7 @@ data class AppInfo(
     companion object {
         const val ANDROID = "android"
         const val WINDOWS = "windows"
+        const val LINUX = "linux"
 
         /** `android:com.example.app` を元に戻す。読めなければ null。 */
         fun idOf(uid: String): Pair<String, String>? {
@@ -212,6 +213,10 @@ data class SyncSettings(
 /** 中身を見ない包みを作るための小道具。 */
 fun envelopeOf(uid: String, updatedAt: Long, payload: JsonElement, deleted: Boolean = false): Envelope =
     Envelope(uid, updatedAt, deleted, payload as? JsonObject ?: JsonObject(emptyMap()))
+
+/** 外す端末。 */
+@Serializable
+data class RemoveDeviceRequest(val deviceId: String)
 
 /** 端末を名簿に載せてもらうときに名乗るもの。 */
 @Serializable

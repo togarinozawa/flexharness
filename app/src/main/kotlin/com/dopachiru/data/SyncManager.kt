@@ -296,7 +296,17 @@ class SyncManager(
             var catalogs = settingsStore.ruleCatalogs.first()
             for (envelope in incomingCatalogs) {
                 val local = syncStateDao.get(SyncKinds.RULE_CATALOGS, envelope.uid)?.updatedAt
-                if (decideMerge(envelope, local) != MergeAction.Apply) continue
+                val action = decideMerge(envelope, local)
+                if (action == MergeAction.Delete) {
+                    // 外された端末の名札。時刻は覚えない ── 覚えると、つなぎ直した端末の
+                    // 名札(中身が同じなら古い時刻のまま来る)を「古い」として捨ててしまう
+                    if (envelope.uid == settings.deviceId) continue
+                    catalogs = catalogs.filterNot { it.deviceId == envelope.uid }
+                    syncStateDao.remove(SyncKinds.RULE_CATALOGS, envelope.uid)
+                    applied++
+                    continue
+                }
+                if (action != MergeAction.Apply) continue
                 val catalog = SyncMapper.catalogOf(envelope) ?: continue
                 if (catalog.deviceId == settings.deviceId) continue
                 catalogs = catalogs.filterNot { it.deviceId == catalog.deviceId } + catalog
@@ -330,6 +340,13 @@ class SyncManager(
         if (incomingDevices.isNotEmpty()) {
             var roster = settingsStore.devices.first()
             for (envelope in incomingDevices) {
+                if (envelope.deleted) {
+                    // 外された端末。名札と同じ理由で、時刻は覚えずに忘れるだけ
+                    roster = roster.filterNot { it.deviceId == envelope.uid }
+                    syncStateDao.remove(SyncKinds.DEVICES, envelope.uid)
+                    applied++
+                    continue
+                }
                 val info = SyncMapper.deviceOf(envelope) ?: continue
                 roster = roster.filterNot { it.deviceId == info.deviceId } + info
                 syncStateDao.put(

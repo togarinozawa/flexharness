@@ -361,6 +361,29 @@ object DopaRuntime {
     }
 
     /**
+     * ほかの1台を区画から外す。向こうの合言葉は使えなくなる。
+     *
+     * 手元の名簿からはすぐ消す。サーバーの墓標が届くのを待つと、押したのに
+     * 残って見えて、もう一度押すことになる。
+     */
+    suspend fun removeDevice(deviceId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val current = settings.syncSettings.first()
+        if (!current.isConfigured) return@withContext Result.failure(IllegalStateException("まだつないでいません"))
+        if (deviceId == current.deviceId) return@withContext Result.failure(IllegalStateException("この端末は外せません"))
+        when (val out = SyncApi(current.baseUrl, current.token).removeDevice(deviceId)) {
+            is SyncApi.Outcome.Ok -> {
+                settings.setDevices(settings.devices.first().filterNot { it.deviceId == deviceId })
+                settings.setRuleCatalogs(settings.ruleCatalogs.first().filterNot { it.deviceId == deviceId })
+                runCatching { sync.syncNow() }
+                Result.success(Unit)
+            }
+            is SyncApi.Outcome.Rejected -> Result.failure(IllegalStateException(out.message))
+            is SyncApi.Outcome.Unreachable -> Result.failure(IllegalStateException(out.message))
+            is SyncApi.Outcome.Malformed -> Result.failure(IllegalStateException(out.message))
+        }
+    }
+
+    /**
      * ほかの端末から届いたものを忘れる。この端末の予約だけは残す(ここで使うものなので)。
      */
     private suspend fun forgetSharedData(myDeviceId: String) {

@@ -107,6 +107,18 @@ class SyncApi(
      */
     fun deleteAccount(): Outcome<Unit> = request("POST", "/account/delete", "{}") { }
 
+    /**
+     * ほかの1台を区画から外す。なくした端末・入れ直して別人になった端末の後始末。
+     *
+     * 外された端末の合言葉は使えなくなり、名簿と名札はほかの端末の次の同期で消える。
+     * **自分自身は外せません**(それは [deleteAccount] ではなく、手元で連携をやめること)。
+     */
+    fun removeDevice(deviceId: String): Outcome<Unit> = request(
+        "POST",
+        "/devices/remove",
+        JSON.encodeToString(RemoveDeviceRequest.serializer(), RemoveDeviceRequest(deviceId)),
+    ) { }
+
     // ---- 短い合言葉で繋ぐ ------------------------------------------------
 
     /**

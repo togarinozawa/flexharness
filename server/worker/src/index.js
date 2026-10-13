@@ -114,6 +114,9 @@ export default {
       if (path === '/sync' && request.method === 'POST') return cors(await sync(request, env, auth));
       if (path === '/usage' && request.method === 'POST') return cors(await putUsage(request, env, auth));
       if (path === '/usage' && request.method === 'GET') return cors(await getUsage(url, env, auth));
+      if (path === '/devices/remove' && request.method === 'POST') {
+        return cors(await removeDevice(request, env, auth));
+      }
       if (path === '/account/delete' && request.method === 'POST') {
         return cors(await deleteAccount(env, auth));
       }
@@ -293,11 +296,16 @@ async function issueDeviceToken(env, userId, device) {
   }
 
   const token = newToken();
-  await env.DB.prepare(
-    'INSERT INTO dopachiru_device_tokens (user_id, token, device_id, name, platform, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  )
-    .bind(userId, token, device.deviceId, device.name, device.platform, Date.now())
-    .run();
+  await env.DB.batch([
+    env.DB.prepare(
+      'INSERT INTO dopachiru_device_tokens (user_id, token, device_id, name, platform, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ).bind(userId, token, device.deviceId, device.name, device.platform, Date.now()),
+    // 外されたあとにつなぎ直した端末なら、墓標を片づける。残すと、名札の時刻
+    // (中身が同じなら外す前のまま)が墓標より古くて、上書きが通らない
+    env.DB.prepare(
+      "DELETE FROM dopachiru_entities WHERE user_id = ? AND uid = ? AND deleted = 1 AND kind IN ('devices', 'ruleCatalogs')",
+    ).bind(userId, device.deviceId),
+  ]);
   return { token };
 }
 
@@ -318,6 +326,34 @@ async function deleteAccount(env, auth) {
     env.DB.prepare('DELETE FROM dopachiru_device_tokens WHERE user_id = ?').bind(id),
     env.DB.prepare('DELETE FROM dopachiru_meta WHERE user_id = ?').bind(id),
     env.DB.prepare('DELETE FROM dopachiru_users WHERE user_id = ?').bind(id),
+  ]);
+  return json({ ok: true });
+}
+
+/**
+ * 1台を区画から外す。なくした端末・入れ直して別人になった端末の後始末。
+ *
+ * 合言葉は**消す**(revoked を立てない)。立てると、同じ端末がコードでつなぎ直そうと
+ * したときに弾かれる。名簿と名札は墓標にして、ほかの端末の次の同期で消えるようにする。
+ * 墓標の時刻は秒(端末が書く updatedAt と同じ単位)。
+ */
+async function removeDevice(request, env, auth) {
+  const body = await readJson(request);
+  const deviceId = String(body.deviceId || '').slice(0, 64);
+  if (!deviceId) return json({ error: 'deviceId が要ります' }, 400);
+  // 自分を外すと、外した瞬間に合言葉が死んで「連携をやめる」の後始末が走らない。
+  // 自分のぶんは端末の側で連携をやめてもらう
+  if (auth.deviceId && auth.deviceId === deviceId) return json({ error: 'self' }, 409);
+
+  const at = Math.floor(Date.now() / 1000) + 1;
+  const tomb = (kind) =>
+    upsertEntity(env, auth.userId, { kind, uid: deviceId, updatedAt: at, deleted: 1, payload: '{}', deviceId: auth.deviceId || '' });
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM dopachiru_device_tokens WHERE user_id = ? AND device_id = ?').bind(auth.userId, deviceId),
+    env.DB.prepare('INSERT OR IGNORE INTO dopachiru_meta (user_id, rev) VALUES (?, 0)').bind(auth.userId),
+    env.DB.prepare('UPDATE dopachiru_meta SET rev = rev + 1 WHERE user_id = ?').bind(auth.userId),
+    tomb('devices'),
+    tomb('ruleCatalogs'),
   ]);
   return json({ ok: true });
 }
@@ -532,6 +568,7 @@ const REPO = 'togarinozawa/doapchill';
 const ASSETS = {
   android: /^dopachiru-(\d+(?:\.\d+)*)\.apk$/,
   windows: /^dopachiru-windows-(\d+(?:\.\d+)*)\.msi$/,
+  linux: /^dopachiru-linux-(\d+(?:\.\d+)*)\.deb$/,
 };
 
 /**
@@ -570,7 +607,7 @@ async function latestVersions(request, env) {
     return json({ error: 'upstream' }, 502);
   }
 
-  const body = { android: null, windows: null, notes: '', publishedAt: '' };
+  const body = { android: null, windows: null, linux: null, notes: '', publishedAt: '' };
   if (Array.isArray(releases)) {
     // 新しいほうから見て、最初に見つかったものを採る。**platform ごとに別々に探す**
     // ── APK だけ出した版があると、MSI が道連れで見えなくなるため

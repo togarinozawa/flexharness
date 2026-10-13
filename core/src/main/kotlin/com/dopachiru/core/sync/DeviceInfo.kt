@@ -25,7 +25,7 @@ data class DeviceInfo(
     val deviceId: String,
     /** 人が読む名前。既定は deviceId のまま。 */
     val name: String = "",
-    /** [AppInfo.ANDROID] / [AppInfo.WINDOWS]。 */
+    /** [AppInfo.ANDROID] / [AppInfo.WINDOWS] / [AppInfo.LINUX]。 */
     val platform: String = "",
     /** アプリの版。食い違いの切り分け用。 */
     val version: String = "",
@@ -48,5 +48,6 @@ data class DeviceInfo(
     companion object {
         const val PLATFORM_ANDROID = AppInfo.ANDROID
         const val PLATFORM_WINDOWS = AppInfo.WINDOWS
+        const val PLATFORM_LINUX = AppInfo.LINUX
     }
 }

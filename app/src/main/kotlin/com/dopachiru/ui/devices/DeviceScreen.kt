@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -99,7 +100,10 @@ fun DeviceScreen() {
         }
 
         items(others, key = { it.deviceId }) { device ->
-            RemoteCard(device) { kind, minutes, reason ->
+            RemoteCard(
+                device,
+                onRemove = { DopaRuntime.removeDevice(device.deviceId) },
+            ) { kind, minutes, reason ->
                 scope.launch {
                     DopaRuntime.requestOnDevice(
                         to = device.deviceId,
@@ -185,11 +189,47 @@ private fun SelfCard(self: DeviceInfo?, myDeviceId: String) {
 @Composable
 private fun RemoteCard(
     device: DeviceInfo,
+    onRemove: suspend () -> Result<Unit>,
     onRequest: (kind: String, minutes: Int, reason: String) -> Unit,
 ) {
     var minutes by remember { mutableIntStateOf(30) }
     var reason by remember { mutableStateOf("") }
+    var confirmRemove by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf(false) }
+    var removeError by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
     val nowSec = System.currentTimeMillis() / 1000
+
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { if (!removing) confirmRemove = false },
+            title = { Text("「${device.displayName}」を外す") },
+            text = {
+                Text(
+                    "向こうの合言葉が使えなくなり、名簿から消えます。向こうの端末の中の" +
+                        "ルールや記録はそのままです。もう一度つなぐには、コードを入れ直します。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !removing,
+                    onClick = {
+                        removing = true
+                        scope.launch {
+                            onRemove()
+                                .onSuccess { removeError = "" }
+                                .onFailure { removeError = it.message.orEmpty() }
+                            removing = false
+                            confirmRemove = false
+                        }
+                    },
+                ) { Text(if (removing) "外しています…" else "外す") }
+            },
+            dismissButton = {
+                TextButton(enabled = !removing, onClick = { confirmRemove = false }) { Text("やめる") }
+            },
+        )
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -264,6 +304,19 @@ private fun RemoteCard(
                 OutlinedButton(onClick = { onRequest(CommandKind.PASS, minutes, reason) }) {
                     Text("解禁券を使わせる")
                 }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            // 頼みごとから離して最後に置く。押し間違えて外すと、向こうでコードを入れ直すまで戻らない
+            TextButton(onClick = { confirmRemove = true }) {
+                Text("この端末を外す", color = MaterialTheme.colorScheme.error)
+            }
+            if (removeError.isNotBlank()) {
+                Text(
+                    "外せませんでした: $removeError",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

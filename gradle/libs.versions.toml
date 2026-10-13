@@ -19,6 +19,7 @@ junit = "4.13.2"
 # Windows 版
 composeMultiplatform = "1.11.1"
 jna = "5.17.0"
+dbus-java = "5.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,6 +53,8 @@ kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 # Win32 API を叩く。前面ウィンドウの取得と、最小化・一時停止に使う
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 jna-platform = { group = "net.java.dev.jna", name = "jna-platform", version.ref = "jna" }
+dbus-java-core = { group = "com.github.hypfvieh", name = "dbus-java-core", version.ref = "dbus-java" }
+dbus-java-transport = { group = "com.github.hypfvieh", name = "dbus-java-transport-native-unixsocket", version.ref = "dbus-java" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }

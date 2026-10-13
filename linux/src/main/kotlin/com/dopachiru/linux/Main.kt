@@ -1,0 +1,322 @@
+package com.dopachiru.linux
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Tray
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import com.dopachiru.linux.platform.AutoStart
+import com.dopachiru.linux.ui.BlockScreen
+import com.dopachiru.linux.ui.DeclareScreen
+import com.dopachiru.linux.ui.DelayScreen
+import com.dopachiru.linux.ui.DesktopApp
+import com.dopachiru.linux.ui.ESCAPE_HOLD_SECONDS
+import com.dopachiru.linux.ui.LockedScreen
+import com.dopachiru.linux.ui.SessionTimerScreen
+import com.dopachiru.linux.ui.IntentionChip
+import com.dopachiru.linux.ui.IntentionInputScreen
+import com.dopachiru.linux.ui.RadioScreen
+import com.dopachiru.linux.ui.WarnScreen
+import kotlinx.coroutines.delay
+
+/**
+ * Linux(KDE Plasma)版のエントリポイント。
+ *
+ * 常駐はトレイ。ウィンドウを閉じても監視は続く。
+ * ログインと一緒に立ち上がったとき(`--startup` 付き)は、窓を出さずトレイだけで始まる。
+ * ブロック画面は、必要になったときだけ現れる別のウィンドウとして出す
+ * ── 「最前面・枠なし・全画面」の普通のウィンドウで代用する。Compose は XWayland の上で
+ * 動くので、KWin は最前面の求めを聞いてくれる。
+ *
+ * トレイは AWT の SystemTray(XEmbed)で、Plasma 6 では xembedsniproxy が橋渡しする。
+ * **橋が無い環境ではトレイが出ない。** そのときは窓を閉じさせず最小化に留める ──
+ * 閉じた窓を開き直す口が無くなり、止めかたも分からない常駐になるので。
+ */
+fun main(args: Array<String>) = application {
+    LaunchedEffect(Unit) { DesktopRuntime.start() }
+
+    val settings by DesktopRuntime.settings.collectAsState()
+    // 明けたぶんは watchLoop が 0 に戻すので、残っていれば止まっている
+    val paused = settings.pausedUntilSec > 0L
+    val presentation by DesktopRuntime.presentation.collectAsState()
+
+    // ログインと一緒に立ち上がったときは窓を出さない。
+    // 毎朝ウィンドウが開くと、それ自体が邪魔で自動起動を切りたくなる
+    val trayOk = remember { runCatching { java.awt.SystemTray.isSupported() }.getOrDefault(false) }
+    val startup = args.contains(AutoStart.STARTUP_FLAG)
+    var windowOpen by remember { mutableStateOf(!startup || !trayOk) }
+    val windowState = rememberWindowState(
+        size = DpSize(760.dp, 680.dp),
+        placement = androidx.compose.ui.window.WindowPlacement.Floating,
+        isMinimized = startup && !trayOk,
+    )
+
+    Tray(
+        icon = remember(paused) { TrayIcon(paused) },
+        tooltip = if (paused) "ドパチル(一時停止中)" else "ドパチル",
+        onAction = { windowOpen = true },
+        menu = {
+            Item("開く", onClick = { windowOpen = true })
+            // 一時停止は開発者向けの奥に置いてある。トレイにも出すと、
+            // 設定で隠した意味が無くなる ── 詰まったときにまず押してしまう
+            if (settings.developerMode) {
+                CheckboxItem(
+                    "一時停止(" + DesktopRuntime.PAUSE_MINUTES + "分)",
+                    checked = paused,
+                    onCheckedChange = { on ->
+                        DesktopRuntime.pauseFor(if (on) DesktopRuntime.PAUSE_MINUTES else 0)
+                    },
+                )
+            }
+            Separator()
+            Item(
+                "終了",
+                onClick = {
+                    DesktopRuntime.flush()
+                    exitApplication()
+                },
+            )
+        },
+    )
+
+    if (windowOpen) {
+        Window(
+            onCloseRequest = { if (trayOk) windowOpen = false else windowState.isMinimized = true },
+            title = "ドパチル",
+            state = windowState,
+        ) {
+            DesktopApp()
+        }
+    }
+
+    when (val current = presentation) {
+        is Presentation.Block -> {
+            var escHeld by remember(current.key) { mutableStateOf(false) }
+            var escSeconds by remember(current.key) { mutableIntStateOf(0) }
+
+            LaunchedEffect(escHeld, current.key) {
+                if (!escHeld) {
+                    escSeconds = 0
+                    return@LaunchedEffect
+                }
+                while (escSeconds < ESCAPE_HOLD_SECONDS) {
+                    delay(1000)
+                    escSeconds += 1
+                }
+                DesktopRuntime.emergencyPause()
+            }
+
+            OverlayWindow(
+                onKeyEvent = { event ->
+                    if (event.key == Key.Escape) {
+                        escHeld = event.type == KeyEventType.KeyDown
+                        true
+                    } else {
+                        false
+                    }
+                }
+            ) {
+                BlockScreen(
+                    block = current,
+                    escapeHoldSeconds = escSeconds,
+                    onDismiss = { DesktopRuntime.dismissBlock() },
+                    onOverride = { DesktopRuntime.overrideBlock() },
+                )
+            }
+        }
+
+        is Presentation.Locked -> {
+            var escHeld by remember(current.key) { mutableStateOf(false) }
+            var escSeconds by remember(current.key) { mutableIntStateOf(0) }
+
+            // 罰の最中でも逃げ道は残す。罰は自分で選んだものだが、
+            // こちらの不具合で閉じられなくなる可能性はブロック画面と変わらない
+            LaunchedEffect(escHeld, current.key) {
+                if (!escHeld) {
+                    escSeconds = 0
+                    return@LaunchedEffect
+                }
+                while (escSeconds < ESCAPE_HOLD_SECONDS) {
+                    delay(1000)
+                    escSeconds += 1
+                }
+                DesktopRuntime.emergencyPause()
+            }
+
+            OverlayWindow(
+                onKeyEvent = { event ->
+                    if (event.key == Key.Escape) {
+                        escHeld = event.type == KeyEventType.KeyDown
+                        true
+                    } else {
+                        false
+                    }
+                }
+            ) {
+                LockedScreen(
+                    locked = current,
+                    escapeHoldSeconds = escSeconds,
+                    onMinimize = { DesktopRuntime.dismissBlock() },
+                    onExtendFocus = { DesktopRuntime.extendFocus(it) },
+                    onEndFocus = { DesktopRuntime.endFocusEarly() },
+                )
+            }
+        }
+
+        is Presentation.Delay -> OverlayWindow {
+            DelayScreen(delay = current, onDone = { DesktopRuntime.passDelay() })
+        }
+
+        // 覚え書きを重ねて1枚に。どれも何も遮らないので、隅に置くだけ。
+        // 高さは枚数ぶん伸ばす ── 足りないと下のものが切れて、
+        // 「出したのに見えない」になる
+        is Presentation.Notes -> Window(
+            onCloseRequest = {},
+            title = "ドパチル",
+            undecorated = true,
+            transparent = true,
+            alwaysOnTop = true,
+            focusable = false,
+            resizable = false,
+            state = rememberWindowState(
+                size = DpSize(360.dp, (64 * current.items.size).dp),
+                position = WindowPosition(Alignment.TopEnd),
+            ),
+        ) {
+            Column {
+                current.items.forEach { item ->
+                    when (item) {
+                        is Presentation.Timer -> SessionTimerScreen(item)
+                        is Presentation.Intention -> IntentionChip(item)
+                        else -> Unit
+                    }
+                }
+            }
+        }
+
+        // 何も遮らないので、小さな枠で隅に置くだけ。操作は下に届く
+        is Presentation.Timer -> Window(
+            onCloseRequest = {},
+            title = "ドパチル",
+            undecorated = true,
+            transparent = true,
+            alwaysOnTop = true,
+            focusable = false,
+            resizable = false,
+            state = rememberWindowState(
+                size = DpSize(150.dp, 64.dp),
+                position = WindowPosition(Alignment.TopEnd),
+            ),
+        ) {
+            SessionTimerScreen(current)
+        }
+
+        is Presentation.Declare -> OverlayWindow {
+            DeclareScreen(
+                declare = current,
+                onDeclare = { minutes, reason ->
+                    DesktopRuntime.declare(current.processName, minutes, reason)
+                },
+                onCancel = { DesktopRuntime.cancelDeclare() },
+            )
+        }
+
+        is Presentation.Warn -> Window(
+            onCloseRequest = {},
+            title = "ドパチル",
+            undecorated = true,
+            transparent = true,
+            alwaysOnTop = true,
+            focusable = false,
+            resizable = false,
+            state = rememberWindowState(
+                size = DpSize(460.dp, 110.dp),
+                position = WindowPosition(Alignment.TopCenter),
+            ),
+        ) {
+            WarnScreen(current.message)
+        }
+
+        // 映像を覆うだけ。全画面で最前面に立つが、下のアプリは動き続けて音を出す
+        is Presentation.Radio -> OverlayWindow {
+            RadioScreen(radio = current, onPeek = { DesktopRuntime.peekRadio(current.peekSeconds) })
+        }
+
+        is Presentation.IntentionInput -> OverlayWindow {
+            IntentionInputScreen(input = current, onSet = { DesktopRuntime.setIntention(it) })
+        }
+
+        // 書いた目的を上端に小さく出し続ける。操作は下に届く
+        is Presentation.Intention -> Window(
+            onCloseRequest = {},
+            title = "ドパチル",
+            undecorated = true,
+            transparent = true,
+            alwaysOnTop = true,
+            focusable = false,
+            resizable = false,
+            state = rememberWindowState(
+                size = DpSize(360.dp, 64.dp),
+                position = WindowPosition(Alignment.TopCenter),
+            ),
+        ) {
+            IntentionChip(current)
+        }
+
+        null -> Unit
+    }
+}
+
+/**
+ * トレイの絵。止めているかどうかで色を変える。
+ * アイコン用の依存をわざわざ足さずに済むので、その場で描く。
+ */
+private class TrayIcon(private val paused: Boolean) : Painter() {
+    override val intrinsicSize = Size(32f, 32f)
+
+    override fun DrawScope.onDraw() {
+        drawCircle(color = if (paused) Color(0xFF5A5A6B) else Color(0xFF9BB8FF))
+        drawCircle(color = Color(0xFF0B0B12), radius = size.minDimension / 4.5f)
+    }
+}
+
+/** 閉じられない・最前面・全画面のウィンドウ。 */
+@Composable
+private fun androidx.compose.ui.window.ApplicationScope.OverlayWindow(
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
+    content: @Composable () -> Unit,
+) {
+    Window(
+        onCloseRequest = {},
+        title = "ドパチル",
+        undecorated = true,
+        alwaysOnTop = true,
+        resizable = false,
+        state = rememberWindowState(placement = WindowPlacement.Fullscreen),
+        onKeyEvent = onKeyEvent,
+    ) {
+        content()
+    }
+}

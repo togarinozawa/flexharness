@@ -25,3 +25,4 @@ rootProject.name = "dopachiru"
 include(":core")
 include(":app")
 include(":desktop")
+include(":linux")

@@ -8,7 +8,8 @@
 |---|---|
 | `:core` | ルールエンジン。条件・措置・判定・同期の型。**UI も端末 API も持たない** |
 | `:app` | Android。AccessibilityService + オーバーレイ + Room |
-| `:desktop` | Windows。Compose Desktop + トレイ + JSON ファイル保存 |
+| `:desktop` | Windows。**凍結**(ビルドもリリースもしない。コードは残す) |
+| `:linux` | Debian + KDE Plasma 6(Wayland)。`:desktop` から写したもの。前面アプリは KWin スクリプト → D-Bus |
 | `extension/` | Chrome 拡張。URL とページ内要素を見る |
 | `server/worker/` | Cloudflare Workers + D1。同期と `/version` |
 
@@ -39,8 +40,10 @@
 
 ```bash
 ./gradlew :core:test :app:testDebugUnitTest
-./gradlew :desktop:compileKotlin
+dbus-run-session -- ./gradlew :linux:test   # KWin の代役を立てる試験がセッションバスを要る
 ```
+
+KWin そのものは試験で動かせない。Plasma の上で `./gradlew :linux:kwinSmoke` を流して目で見る。
 
 Room のマイグレーションは、手書きの SQL と生成されたスキーマ JSON を
 突き合わせる `MigrationSqlTest` が見張っている。列を足したら必ず通すこと。
@@ -51,24 +54,24 @@ Room のマイグレーションは、手書きの SQL と生成されたスキ�
 バラバラにやらない。
 
 ```bash
-./gradlew :app:dist :desktop:distMsi :desktop:packagePortable
+./gradlew :app:dist :linux:distDeb :linux:packagePortable
 ```
 
 3つとも版つきの名前で `dist/` に出る。**リリースにはこの3つを上げる。**
 
 **`dist/` の名前のまま上げること。** `/version`(自動更新)が名前から版を読むので、
 名前が合わないと更新が届かない。`build/` の中の jpackage 生の
-`Dopachiru-x.y.z.msi` を上げると**この事故が起きる**:
+`dopachiru_x.y.z_amd64.deb` を上げると**この事故が起きる**:
 
 ```
 dopachiru-<app版>.apk              例 dopachiru-0.31.0.apk
-dopachiru-windows-<desktop版>.msi  例 dopachiru-windows-1.25.0.msi
-dopachiru-windows-<desktop版>.zip  持ち運び版
+dopachiru-linux-<linux版>.deb      例 dopachiru-linux-1.0.0.deb
+dopachiru-linux-<linux版>.tar.gz   持ち運び版
 ```
 
 版は2本立て ── `app/build.gradle.kts` の `versionName`/`versionCode` と、
-`desktop/build.gradle.kts` の `desktopVersion`。両方上げる。
+`linux/build.gradle.kts` の `linuxVersion`。両方上げる。
 
-MSI には WiX 3 が要る(PATH に通す)。無い環境では `packageSetup`(zip + install.cmd)。
+.deb には `dpkg-deb` と `fakeroot` が要る(Debian なら入っている)。
 
-サーバーは `server/worker/` で `npm run deploy`。差分が無ければ触らない。
+サーバーは `server/worker/` で `npm run deploy`(wrangler は Node 22 以上が要る)。差分が無ければ触らない。
