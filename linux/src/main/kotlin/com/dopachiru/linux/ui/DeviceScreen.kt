@@ -243,6 +243,7 @@ private fun RemoteCard(device: DeviceInfo) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            GuardLine(device, nowSec)
 
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -345,4 +346,23 @@ private fun formatSpan(startSec: Long, endSec: Long): String {
     val from = Instant.ofEpochSecond(startSec).atZone(zone).format(SPAN)
     val to = Instant.ofEpochSecond(endSec).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm"))
     return "$from 〜 $to"
+}
+
+/** 見張りが外れている・最後に止まっていたときのこと。 */
+@Composable
+private fun GuardLine(device: DeviceInfo, nowSec: Long) {
+    if (device.guardLostAtSec > 0) {
+        Text(
+            "見張りが外れています(${((nowSec - device.guardLostAtSec) / 60).coerceAtLeast(0)}分前から)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+    if (device.lastGap.isNotBlank()) {
+        Text(
+            "前回: " + device.lastGap,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

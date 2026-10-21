@@ -69,8 +69,14 @@ dopachiru-linux-<linux版>.deb      例 dopachiru-linux-1.0.0.deb
 dopachiru-linux-<linux版>.tar.gz   持ち運び版
 ```
 
+**APK はドパチル専用の鍵で署名する。** 在り処と合言葉は `keystore.properties`(gitignore 済み)、
+鍵は `~/.dopachiru-signing/dopachiru-release.jks`(リポジトリの外)。**なくすと二度と上書き更新
+できない**ので、控えを別の場所に置いておく。機械を替えるときは2つとも持っていく。
+`:app:checkSigningKey` が指紋を見張っていて、違えば release を組む前に止まる
+(0.41.0 は機械ごとの debug 鍵で署名してしまい、上書きできなかった)。
+
 版は2本立て ── `app/build.gradle.kts` の `versionName`/`versionCode` と、
-`linux/build.gradle.kts` の `linuxVersion`。両方上げる。
+`linux/build.gradle.kts` の `linuxVersion`(と `linux/.../AppVersion.kt`)。両方上げる。
 
 .deb には `dpkg-deb` と `fakeroot` が要る(Debian なら入っている)。
 

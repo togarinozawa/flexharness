@@ -10,6 +10,7 @@ import com.dopachiru.core.model.Rule
 import com.dopachiru.data.db.ChangeRequestDao
 import com.dopachiru.data.db.ChangeRequestEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
 import java.time.Instant
@@ -26,6 +27,9 @@ data class PendingChange(
     val kind: ChangeKind get() = runCatching { ChangeKind.valueOf(entity.kind) }.getOrDefault(ChangeKind.UPDATE)
     val rule: Rule? get() = runCatching { DopaCore.decodeRule(entity.payloadJson) }.getOrNull()
     val previousRule: Rule? get() = runCatching { DopaCore.decodeRule(entity.previousJson) }.getOrNull()
+
+    /** 時間で戻る一時停止なら、その長さ(分)。ずっと無効にする申請なら 0。 */
+    val pauseMinutes: Int get() = if (kind == ChangeKind.DISABLE) entity.pauseMinutes else 0
 }
 
 /**
@@ -56,6 +60,8 @@ class ChangeRequestRepository(
         rule: Rule?,
         gates: List<Gate>,
         reason: String = "",
+        /** [ChangeKind.DISABLE] のとき、時間で戻す長さ(分)。0 ならずっと無効にする。 */
+        pauseMinutes: Int = 0,
     ): Long {
         if (kind == ChangeKind.CREATE || kind == ChangeKind.ENABLE) {
             rule?.let { applyRule(kind, it) }
@@ -74,8 +80,13 @@ class ChangeRequestRepository(
             status = ChangeStatus.PENDING.name,
             clearedGateKeys = "",
             gatesJson = DopaCore.json.encodeToString(ListSerializer(Gate.serializer()), gates),
+            pauseMinutes = if (kind == ChangeKind.DISABLE) pauseMinutes.coerceAtLeast(0) else 0,
         )
-        return dao.insert(entity)
+        val id = dao.insert(entity)
+        // 関門が1つも無ければ、その場で通す。前は申請だけ出して「変更」の画面で
+        // 押すまで何も起きず、スイッチが押せないように見えていた
+        if (gates.isEmpty()) applyIfReady(id)
+        return id
     }
 
     /** ゲートを1つ通過させる。 */
@@ -94,13 +105,24 @@ class ChangeRequestRepository(
     /** ゲートをすべて通過していれば適用する。適用できたら true。 */
     suspend fun applyIfReady(requestId: Long): Boolean {
         val row = dao.getById(requestId) ?: return false
+        // 済んだ申請をもう一度通さない。通すと、一時停止がそのたびに延びる
+        if (row.status != ChangeStatus.PENDING.name) return false
         val pending = row.toPending()
         if (!pending.isReady) return false
 
         val rule = pending.rule
         when (pending.kind) {
             ChangeKind.DELETE -> row.targetRuleId?.let { ruleRepository.delete(it) }
-            ChangeKind.DISABLE -> row.targetRuleId?.let { ruleRepository.setEnabled(it, false) }
+            ChangeKind.DISABLE -> row.targetRuleId?.let { id ->
+                if (pending.pauseMinutes > 0) {
+                    // 期限は**通した時刻から**数える。申請した時刻から数えると、
+                    // 関門の待ちのあいだに止める時間が目減りする
+                    val until = System.currentTimeMillis() / 1000 + pending.pauseMinutes * 60L
+                    ruleRepository.setPausedUntil(id, until)
+                } else {
+                    ruleRepository.setEnabled(id, false)
+                }
+            }
             ChangeKind.ENABLE -> row.targetRuleId?.let { ruleRepository.setEnabled(it, true) }
             ChangeKind.CREATE, ChangeKind.UPDATE -> rule?.let { ruleRepository.upsert(it) }
         }
@@ -112,6 +134,22 @@ class ChangeRequestRepository(
             )
         )
         return true
+    }
+
+    /**
+     * 関門を通り終えた一時停止を、まとめて効かせる。常駐の刻みから呼ぶ。
+     *
+     * 一時停止は「待てば止まる」ものなので、待ち終えたらその場で止める。
+     * 「変更」の画面でもう一度押させると、待ったあとにまた手間が来て、
+     * 結局ドパチルごと切るほうが早くなる。ずっと無効にする申請は今までどおり押させる。
+     *
+     * @return 効かせた申請。
+     */
+    suspend fun applyReadyPauses(): List<PendingChange> {
+        val ready = dao.observePending().first()
+            .map { it.toPending() }
+            .filter { it.kind == ChangeKind.DISABLE && it.pauseMinutes > 0 && it.isReady }
+        return ready.filter { applyIfReady(it.entity.id) }
     }
 
     suspend fun cancel(requestId: Long) {

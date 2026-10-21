@@ -33,11 +33,13 @@ class MonitorService : Service() {
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.Default + job)
+    private val installs by lazy { InstallWatcher(this) }
 
     override fun onCreate() {
         super.onCreate()
         DopaRuntime.init(this)
         startForegroundCompat()
+        installs.start()
         scope.launch {
             while (isActive) {
                 // 見張り(ユーザー補助・重ね表示)が外れていないか確かめる。
@@ -56,6 +58,7 @@ class MonitorService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        installs.stop()
         job.cancel()
         super.onDestroy()
     }

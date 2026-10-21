@@ -19,6 +19,7 @@ import com.dopachiru.core.sync.UsageUpload
 import com.dopachiru.core.sync.decideMerge
 import com.dopachiru.data.db.SyncStateDao
 import com.dopachiru.data.db.SyncStateEntity
+import com.dopachiru.service.PermissionGuard
 import com.dopachiru.ui.rules.InstalledApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -148,6 +149,8 @@ class SyncManager(
                 platform = PLATFORM,
                 version = appVersion(),
                 lastSeenSec = now,
+                guardLostAtSec = PermissionGuard.lostAtSec(context),
+                lastGap = PermissionGuard.lastGap(context),
             ),
             updatedAt = now,
         )

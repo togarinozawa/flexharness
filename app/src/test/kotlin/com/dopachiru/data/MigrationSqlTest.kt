@@ -29,7 +29,7 @@ class MigrationSqlTest {
     private val schema: JsonObject by lazy { schemaOf(4) }
 
     /** いまの版。移行を足したらここを上げる。 */
-    private val latest: JsonObject by lazy { schemaOf(8) }
+    private val latest: JsonObject by lazy { schemaOf(9) }
 
     private fun createSqlOf(tableName: String): String = entity(tableName)["createSql"]!!
         .jsonPrimitive.content
@@ -48,7 +48,7 @@ class MigrationSqlTest {
     @Test
     fun `スキーマの版と database の版がそろっている`() {
         assertEquals(4, schema["version"]!!.jsonPrimitive.content.toInt())
-        assertEquals(8, latest["version"]!!.jsonPrimitive.content.toInt())
+        assertEquals(9, latest["version"]!!.jsonPrimitive.content.toInt())
     }
 
     @Test
@@ -261,5 +261,43 @@ class MigrationSqlTest {
             addAll(listOf("lockouts", "point_events").flatMap { listOf(createSqlOf(it)) + indexSqlOf(it) })
         }
         assertEquals(expected.size, DopaDatabase.MIGRATION_3_4_SQL.size)
+    }
+
+    // ---- 8 から 9 ---------------------------------------------------------
+
+    @Test
+    fun `一時停止に足した2列が生成物と一致する`() {
+        val paused = fieldOf(9, "rules", "pausedUntilSec")
+        assertEquals("0", paused["defaultValue"]!!.jsonPrimitive.content)
+        assertEquals("INTEGER", paused["affinity"]!!.jsonPrimitive.content)
+        assertEquals(true, paused["notNull"]!!.jsonPrimitive.content.toBoolean())
+
+        val minutes = fieldOf(9, "change_requests", "pauseMinutes")
+        assertEquals("0", minutes["defaultValue"]!!.jsonPrimitive.content)
+        assertEquals("INTEGER", minutes["affinity"]!!.jsonPrimitive.content)
+        assertEquals(true, minutes["notNull"]!!.jsonPrimitive.content.toBoolean())
+
+        assertEquals(
+            listOf(
+                "ALTER TABLE `rules` ADD COLUMN `pausedUntilSec` INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE `change_requests` ADD COLUMN `pauseMinutes` INTEGER NOT NULL DEFAULT 0",
+            ),
+            DopaDatabase.MIGRATION_8_9_SQL,
+        )
+    }
+
+    @Test
+    fun `8から9で増えた列はこの2つだけ`() {
+        fun columns(version: Int) = schemaOf(version)["entities"]!!.jsonArray
+            .map { it.jsonObject }
+            .flatMap { entity ->
+                val table = entity["tableName"]!!.jsonPrimitive.content
+                entity["fields"]!!.jsonArray.map { table + "." + it.jsonObject["columnName"]!!.jsonPrimitive.content }
+            }
+            .toSet()
+        assertEquals(
+            setOf("rules.pausedUntilSec", "change_requests.pauseMinutes"),
+            columns(9) - columns(8),
+        )
     }
 }

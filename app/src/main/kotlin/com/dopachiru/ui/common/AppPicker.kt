@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dopachiru.data.AppUsageRanking
+import com.dopachiru.data.KnownApps
 import com.dopachiru.ui.rules.AppInfo
 import com.dopachiru.ui.rules.InstalledApps
 import kotlinx.coroutines.Dispatchers
@@ -77,24 +78,41 @@ fun AppPickerList(
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf(if (usage.isEmpty()) AppSort.NAME else AppSort.USAGE) }
 
-    val visible = remember(query, sort, apps, usage, selected) {
-        val filtered = if (query.isBlank()) {
-            apps
-        } else {
-            apps.filter { it.label.contains(query, ignoreCase = true) }
+    // 入っていないもの。よく知られたアプリと、選んだまま消したアプリ。
+    // 消してあるうちから対象に入れておかないと、入れ直した瞬間に素通りになる
+    val absent = remember(apps, selected) {
+        val installed = apps.map { it.packageName }.toSet()
+        val known = KnownApps.all.map { AppInfo(it.packageName, it.label) }
+        val chosen = selected.map { AppInfo(it, KnownApps.labelOf(it) ?: it) }
+        (known + chosen).filter { it.packageName !in installed }.distinctBy { it.packageName }
+    }
+    val absentNames = remember(absent) { absent.map { it.packageName }.toSet() }
+
+    val visible = remember(query, sort, apps, absent, usage, selected) {
+        fun matches(app: AppInfo) = query.isBlank() ||
+            app.label.contains(query, ignoreCase = true) ||
+            app.packageName.contains(query, ignoreCase = true)
+        val here = apps.filter(::matches)
+        val sorted = when (sort) {
+            AppSort.NAME -> InstalledApps.sortedByName(here)
+            AppSort.USAGE -> InstalledApps.sortedByUsage(here, usage)
+            AppSort.SELECTED -> InstalledApps.selectedFirst(here, selected)
         }
-        when (sort) {
-            AppSort.NAME -> InstalledApps.sortedByName(filtered)
-            AppSort.USAGE -> InstalledApps.sortedByUsage(filtered, usage)
-            AppSort.SELECTED -> InstalledApps.selectedFirst(filtered, selected)
-        }
+        // 入っていないものは後ろにまとめる。入っているものと混ぜると、
+        // 使用時間の並びの中に0分の行が割り込んで探しにくい
+        sorted + InstalledApps.selectedFirst(absent.filter(::matches), selected)
+    }
+
+    // 打った文字がパッケージ名の形で、一覧に無ければ、そのまま選べるようにする
+    val typedPackage = query.trim().takeIf { text ->
+        KnownApps.looksLikePackage(text) && visible.none { it.packageName == text }
     }
 
     Column(modifier) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            label = { Text("検索") },
+            label = { Text("検索(名前かパッケージ名)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -148,11 +166,23 @@ fun AppPickerList(
         Spacer(Modifier.height(4.dp))
 
         LazyColumn(Modifier.heightIn(max = maxHeight)) {
+            if (typedPackage != null) {
+                item(key = "typed:$typedPackage") {
+                    AppRow(
+                        app = AppInfo(typedPackage, typedPackage),
+                        checked = typedPackage in selected,
+                        usageMinutes = 0,
+                        note = "パッケージ名として選ぶ(入っていなくても選べます)",
+                        onToggle = { onToggle(typedPackage) },
+                    )
+                }
+            }
             items(visible, key = { it.packageName }) { app ->
                 AppRow(
                     app = app,
                     checked = app.packageName in selected,
                     usageMinutes = usage[app.packageName] ?: 0,
+                    note = if (app.packageName in absentNames) "未インストール ・ 入れたらすぐ止まります" else null,
                     onToggle = { onToggle(app.packageName) },
                 )
             }
@@ -166,6 +196,7 @@ private fun AppRow(
     checked: Boolean,
     usageMinutes: Int,
     onToggle: () -> Unit,
+    note: String? = null,
 ) {
     Row(
         modifier = Modifier
@@ -183,7 +214,13 @@ private fun AppRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (usageMinutes > 0) {
+            if (note != null) {
+                Text(
+                    note,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (usageMinutes > 0) {
                 Text(
                     formatMinutes(usageMinutes),
                     style = MaterialTheme.typography.labelSmall,

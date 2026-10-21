@@ -177,6 +177,9 @@ class DopaAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         live = this
         DopaRuntime.init(this)
+        // 戻した瞬間に「外れていたあいだ」をまとめて出し、通知を消す。常駐の刻み
+        // (画面が消えていると10分)を待つと、戻したのに通知が残って見える
+        Thread({ runCatching { PermissionGuard.check(applicationContext) } }, "dopachiru-guard").start()
         overlay = OverlayHost(this)
         // 封印中は戻るキーを押しても何も起きない
         overlay.onBackPressed = { }

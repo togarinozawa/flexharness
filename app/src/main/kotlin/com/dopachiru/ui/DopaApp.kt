@@ -142,6 +142,7 @@ fun DopaApp() {
                     onCreate = { navController.navigate("rule/0") },
                     onEdit = { id -> navController.navigate("rule/$id") },
                     onOpenTags = { navController.navigate("tags") },
+                    onOpenChanges = { navController.navigate(TopLevel.Changes.route) },
                 )
             }
 

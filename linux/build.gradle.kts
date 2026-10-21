@@ -14,7 +14,7 @@ plugins {
  * Windows 版(`:desktop`)とは別の数え方。Windows 版から写して始めたが、
  * 版まで引き継ぐと「1.29 から 1.30 で何が変わったか」が2つの OS で混ざる。
  */
-val linuxVersion = "1.0.0"
+val linuxVersion = "1.1.0"
 
 kotlin {
     jvmToolchain(21)

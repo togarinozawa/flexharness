@@ -7,6 +7,7 @@ import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import com.dopachiru.data.KnownApps
 import java.text.Collator
 import java.util.Locale
 
@@ -51,8 +52,28 @@ object InstalledApps {
         return list
     }
 
+    /**
+     * 名前。入っていなければ、よく知られたアプリの名前([KnownApps])、それも無ければパッケージ名。
+     *
+     * 消してあるアプリを対象に入れておけるようにしたので、入っていないものの名前も要る。
+     */
     fun labelOf(context: Context, packageName: String): String =
-        load(context).firstOrNull { it.packageName == packageName }?.label ?: packageName
+        load(context).firstOrNull { it.packageName == packageName }?.label
+            ?: KnownApps.labelOf(packageName)
+            ?: packageName
+
+    /** 入っているか。選ぶ画面で「未インストール」の印を付けるため。 */
+    fun isInstalled(context: Context, packageName: String): Boolean =
+        load(context).any { it.packageName == packageName }
+
+    /**
+     * 覚えた一覧を捨てる。アプリが入った・消えたときに呼ぶ。
+     *
+     * 捨てないと、入れ直したアプリが選ぶ画面で「未インストール」のまま出続ける。
+     */
+    fun invalidate() {
+        cache = null
+    }
 
     fun sortedByName(apps: List<AppInfo>): List<AppInfo> = apps.sortedWith(byLabel)
 

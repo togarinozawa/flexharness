@@ -91,6 +91,10 @@ class RuleRepository(
     suspend fun setEnabled(id: Long, enabled: Boolean) =
         ruleDao.setEnabled(id, enabled, System.currentTimeMillis() / 1000)
 
+    /** 一時停止の期限を書く。0 で止めるのをやめる(すぐ効くようになる)。 */
+    suspend fun setPausedUntil(id: Long, untilSec: Long) =
+        ruleDao.setPausedUntil(id, untilSec, System.currentTimeMillis() / 1000)
+
     suspend fun addTag(packageName: String, tag: String) =
         appTagDao.insert(AppTagEntity(packageName, tag))
 
@@ -141,6 +145,7 @@ fun RuleEntity.toRule(): Rule = Rule(
     // 読めなければ「組は1つだけ」に倒す。壊れた2組目でルール全体を失わない
     extraClauses = decodeClauses(extraClausesJson),
     extraActions = decodeActions(extraActionsJson),
+    pausedUntilSec = pausedUntilSec,
 )
 
 private val clauseListSerializer = ListSerializer(Clause.serializer())
@@ -183,6 +188,7 @@ fun Rule.toEntity(createdAt: Long, updatedAt: Long): RuleEntity = RuleEntity(
     } else {
         DopaCore.json.encodeToString(actionListSerializer, extraActions)
     },
+    pausedUntilSec = pausedUntilSec,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

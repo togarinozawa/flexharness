@@ -240,6 +240,20 @@ private fun RemoteCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (device.guardLostAtSec > 0) {
+                Text(
+                    "見張りが外れています(${((nowSec - device.guardLostAtSec) / 60).coerceAtLeast(0)}分前から)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (device.lastGap.isNotBlank()) {
+                Text(
+                    "前回: " + device.lastGap,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
             Text("長さ", style = MaterialTheme.typography.labelLarge)

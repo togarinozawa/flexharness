@@ -103,6 +103,7 @@ fun DesktopApp() = DopaTheme {
             topBar = {
                 Column {
                     KWinProblemBanner()
+                    GuardLostBanner()
                     TabRow(selectedTabIndex = tab) {
                         listOf("ルール", "タグ", "変更", "端末", "今日", "設定").forEachIndexed { index, title ->
                             Tab(
@@ -149,6 +150,31 @@ private fun KWinProblemBanner() {
         Text(
             "制限が効いていません。$problem\n" +
                 "KDE Plasma 6 のセッションで動かしてください。",
+            modifier = Modifier.padding(12.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
+}
+
+/**
+ * ほかの端末(スマホ)の見張りが外れていることを、いちばん上に出し続ける。
+ *
+ * 通知は流れて消えるが、PC の窓は作業中ずっと見えている。外したまま忘れる、を防ぐ。
+ */
+@Composable
+private fun GuardLostBanner() {
+    val file by DesktopRuntime.ruleFile.collectAsState()
+    val settings by DesktopRuntime.settings.collectAsState()
+    val lost = file.devices.filter { it.deviceId != settings.sync.deviceId && it.guardLostAtSec > 0 }
+    if (lost.isEmpty()) return
+    val nowSec = System.currentTimeMillis() / 1000
+    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            lost.joinToString("\n") { device ->
+                "「${device.displayName}」の見張りが外れています(" +
+                    "${((nowSec - device.guardLostAtSec) / 60).coerceAtLeast(0)}分前から)"
+            },
             modifier = Modifier.padding(12.dp),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onErrorContainer,

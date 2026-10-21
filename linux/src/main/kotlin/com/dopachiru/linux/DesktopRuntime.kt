@@ -64,6 +64,7 @@ import com.dopachiru.linux.platform.BlockStrength
 import com.dopachiru.linux.platform.Browsers
 import com.dopachiru.linux.platform.ForegroundApp
 import com.dopachiru.linux.platform.ForegroundWatcher
+import com.dopachiru.linux.platform.DesktopNotify
 import com.dopachiru.linux.platform.KWin
 import com.dopachiru.linux.platform.ProtectedProcesses
 import com.dopachiru.linux.platform.AutoStart
@@ -987,8 +988,34 @@ object DesktopRuntime {
         )
         // 届いた頼みごとをここで捌く。同期の直後にやらないと、次の巡回まで
         // 「送ったのに何も起きない」時間ができる
-        if (outcome is DesktopSync.Outcome.Done) runInbox()
+        if (outcome is DesktopSync.Outcome.Done) {
+            runInbox()
+            noticeGuardChanges()
+        }
         return outcome
+    }
+
+    /** 知らせ済みの「見張りが外れた」。端末と外れた時刻の組。同じものを何度も鳴らさない。 */
+    private val announcedGuardLosses = HashSet<String>()
+
+    /**
+     * ほかの端末の見張りが外れていたら、デスクトップの通知で知らせる。
+     *
+     * PC は常駐していて、スマホを触っているときも画面の端に見えている。スマホの中だけで
+     * 鳴らしても、外した本人がスワイプすれば終わる ── 別の画面に出ることに意味がある。
+     */
+    private fun noticeGuardChanges() {
+        val me = _settings.value.sync.deviceId
+        for (device in _ruleFile.value.devices) {
+            if (device.deviceId == me || device.guardLostAtSec <= 0) continue
+            val key = device.deviceId + "@" + device.guardLostAtSec
+            if (!announcedGuardLosses.add(key)) continue
+            val minutes = ((System.currentTimeMillis() / 1000 - device.guardLostAtSec) / 60).coerceAtLeast(0)
+            DesktopNotify.send(
+                "「${device.displayName}」の見張りが外れています",
+                "${minutes}分前から、ドパチルが何も止めていません。",
+            )
+        }
     }
 
     /**

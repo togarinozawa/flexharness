@@ -31,6 +31,15 @@ data class DeviceInfo(
     val version: String = "",
     /** 最後に同期した時刻。 */
     val lastSeenSec: Long = 0L,
+    /**
+     * 見張り(Android ならユーザー補助)が外れた時刻。0 なら効いている。
+     *
+     * 外したことを**ほかの端末に見せる**ためにある。外した端末の中では、外した本人しか
+     * 気づけない ── 誘惑に負けて外したのなら、なおさら気づかないふりができる。
+     */
+    val guardLostAtSec: Long = 0L,
+    /** 最後に見張りが止まっていたときのまとめ(人が読む1行)。無ければ空。 */
+    val lastGap: String = "",
 ) {
     val displayName: String get() = name.ifBlank { deviceId }
 

@@ -31,6 +31,9 @@ interface RuleDao {
 
     @Query("UPDATE rules SET enabled = :enabled, updatedAt = :now WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean, now: Long)
+
+    @Query("UPDATE rules SET pausedUntilSec = :untilSec, updatedAt = :now WHERE id = :id")
+    suspend fun setPausedUntil(id: Long, untilSec: Long, now: Long)
 }
 
 @Dao

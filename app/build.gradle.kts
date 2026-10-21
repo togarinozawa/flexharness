@@ -1,4 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.security.KeyStore
+import java.security.MessageDigest
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -6,6 +9,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+/** 署名の鍵の在り処と合言葉。無ければ空(release は [checkSigningKey] で止まる)。 */
+val signingProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.isFile) file.inputStream().use { load(it) }
 }
 
 android {
@@ -24,18 +33,26 @@ android {
          */
         minSdk = 29
         targetSdk = 36
-        versionCode = 49
-        versionName = "0.41.0"
+        versionCode = 50
+        versionName = "0.42.0"
     }
 
     signingConfigs {
-        // 個人用サイドロード。Play に出さないので debug キーストアで署名する。
-        // 同じ鍵で署名し続けるかぎり、アンインストールせずに上書き更新できる。
+        /**
+         * 配る APK の署名。**ドパチル専用の鍵**で、在り処は keystore.properties に書く
+         * (鍵もこのファイルも gitignore 済み。リポジトリは公開なので、絶対に入れない)。
+         *
+         * 0.41.0 までは「ビルドした機械の debug 鍵」だった。機械を替えたら鍵が黙って
+         * 作り直され、配った版に上書きできなくなった。専用の鍵は機械に縛られないので、
+         * 持ち歩いて控えておけば同じことは起きない。
+         *
+         * 同じ鍵で署名し続けるかぎり、アンインストールせずに上書き更新できる。
+         */
         create("sideload") {
-            storeFile = File(System.getProperty("user.home"), ".android/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            signingProps.getProperty("storeFile")?.let { storeFile = rootProject.file(it) }
+            storePassword = signingProps.getProperty("storePassword")
+            keyAlias = signingProps.getProperty("keyAlias")
+            keyPassword = signingProps.getProperty("keyPassword")
         }
     }
 
@@ -100,6 +117,48 @@ tasks.register<Copy>("dist") {
     val name = "dopachiru-" + android.defaultConfig.versionName + ".apk"
     rename { name }
 }
+
+/**
+ * 配る APK の署名の指紋(SHA-256)。**これと違う鍵では配らない。**
+ *
+ * 鍵を取り違えて配ると、入っている版に上書きできず(「アプリがインストールされていません」)、
+ * アンインストールしてルールも記録も失うしかなくなる。0.41.0 で一度それが起きた。
+ *
+ * 指紋は公開してよい値(証明書の要約で、鍵そのものではない)。
+ * 0.41.0 までは debug 鍵の 827020ec…、0.42.0 からドパチル専用の鍵。
+ */
+val expectedSigningSha256 = "d4a015b4a3fb8d39541ad54efdd31ebb3b0376f511a44ccc42c7051859e9ea73"
+
+tasks.register("checkSigningKey") {
+    group = "verification"
+    description = "署名の鍵が、これまで配ってきたものと同じかを確かめる"
+    // 設定時に読むのは在り処だけ。合言葉は実行時に読む(構成キャッシュに残さない)
+    val propsFile = rootProject.file("keystore.properties")
+    val root = rootProject.projectDir
+    val expected = expectedSigningSha256
+    doLast {
+        check(propsFile.isFile) {
+            "署名の設定が見つかりません: $propsFile\n" +
+                "控えてある keystore.properties と dopachiru-release.jks を戻してください。"
+        }
+        val props = Properties().apply { propsFile.inputStream().use { load(it) } }
+        val keystore = File(props.getProperty("storeFile").orEmpty()).let { if (it.isAbsolute) it else File(root, it.path) }
+        check(keystore.isFile) { "鍵が見つかりません: $keystore" }
+        val store = KeyStore.getInstance(keystore, props.getProperty("storePassword").orEmpty().toCharArray())
+        val alias = props.getProperty("keyAlias").orEmpty()
+        val cert = store.getCertificate(alias) ?: error("$keystore に $alias がありません")
+        val actual = MessageDigest.getInstance("SHA-256")
+            .digest(cert.encoded)
+            .joinToString("") { "%02x".format(it) }
+        check(actual == expected) {
+            "署名の鍵が、これまで配ってきたものと違います。このまま配ると上書き更新できません。\n" +
+                "  期待: $expected\n  実際: $actual ($keystore)"
+        }
+    }
+}
+
+// release を組む前に必ず確かめる。dist だけに付けると、assembleRelease を直に叩いたときに漏れる
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn("checkSigningKey") }
 
 kotlin {
     jvmToolchain(21)

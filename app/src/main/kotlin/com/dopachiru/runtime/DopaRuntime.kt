@@ -37,6 +37,7 @@ import com.dopachiru.core.model.PeekAllowance
 import com.dopachiru.core.model.PeekCheck
 import com.dopachiru.core.model.Peeks
 import com.dopachiru.core.model.Rule
+import com.dopachiru.core.model.Rules
 import com.dopachiru.core.param.Params
 import com.dopachiru.core.points.PointPolicy
 import com.dopachiru.core.points.PointReason
@@ -133,6 +134,22 @@ object DopaRuntime {
 
     @Volatile
     private var tagCache: Map<String, Set<String>> = emptyMap()
+
+    /** システムの裏方か。パッケージを引くのは重いので、一度見たものは覚える。 */
+    private val systemCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /**
+     * 判定に渡すタグ。人が付けたタグに、システムの裏方なら [com.dopachiru.core.model.Target.SYSTEM_TAG] を足す。
+     *
+     * 判定に使うところは全部ここを通す ── 1か所でも素の [tagCache] を見ると、
+     * 許可リスト型の判定と時間の数え方が食い違う。
+     */
+    private fun tagsFor(packageName: String): Set<String> {
+        val tags = tagCache[packageName] ?: emptySet()
+        if (!initialized) return tags
+        val system = systemCache.getOrPut(packageName) { com.dopachiru.data.SystemApps.isBackstage(appContext, packageName) }
+        return if (system) tags + com.dopachiru.core.model.Target.SYSTEM_TAG else tags
+    }
 
     /** カレンダーを見るルールかゲートが1つでもあるか。無ければ読みにいかない。 */
     @Volatile
@@ -531,7 +548,7 @@ object DopaRuntime {
         },
         withinReservation = reservations.covers(
             packageName,
-            tagCache[packageName] ?: emptySet(),
+            tagsFor(packageName),
             deviceId = myDeviceId,
         ),
         screenSignals = currentScreenSignals,
@@ -555,7 +572,7 @@ object DopaRuntime {
             CountBy.GROUP -> {
                 val rule = ruleCache.firstOrNull { it.id == query.ruleId }
                     ?: return WindowUsage.NONE
-                { name -> rule.target.matches(name, tagCache[name] ?: emptySet()) }
+                { name -> rule.target.matches(name, tagsFor(name)) }
             }
         }
         return UsageBudgets.compute(query, usage.spansOf(matches, nowSec), now, nowSec)
@@ -570,7 +587,7 @@ object DopaRuntime {
     private fun minutesSinceBreak(ruleId: Long, breakMinutes: Int): Int {
         val rule = ruleCache.firstOrNull { it.id == ruleId } ?: return 0
         return usage.minutesSinceBreak(breakMinutes) { pkg ->
-            rule.target.matches(pkg, tagCache[pkg] ?: emptySet())
+            rule.target.matches(pkg, tagsFor(pkg))
         }
     }
 
@@ -582,7 +599,7 @@ object DopaRuntime {
     private fun windowUsage(ruleId: Long, windowMinutes: Int): WindowUsage {
         val rule = ruleCache.firstOrNull { it.id == ruleId } ?: return WindowUsage.NONE
         return usage.windowUsage(windowMinutes) { pkg ->
-            rule.target.matches(pkg, tagCache[pkg] ?: emptySet())
+            rule.target.matches(pkg, tagsFor(pkg))
         }
     }
 
@@ -590,7 +607,7 @@ object DopaRuntime {
     private fun minutesSinceLastUse(ruleId: Long): Int? {
         val rule = ruleCache.firstOrNull { it.id == ruleId } ?: return null
         return usage.minutesSinceLastUse { pkg ->
-            rule.target.matches(pkg, tagCache[pkg] ?: emptySet())
+            rule.target.matches(pkg, tagsFor(pkg))
         }
     }
 
@@ -607,12 +624,12 @@ object DopaRuntime {
         if (packageName in protectedApps) return Decision.Allow
         val nowSec = System.currentTimeMillis() / 1000
         return engine.decide(
-            rules = scopedRules,
+            rules = Rules.effectiveAt(scopedRules, nowSec),
             lockouts = lockouts.current(nowSec),
             ctx = buildContext(packageName, now),
             nowSec = nowSec,
             passUntilSec = passUntilSec,
-            tagsOf = { tagCache[it] ?: emptySet() },
+            tagsOf = { tagsFor(it) },
             peeking = synchronized(peekLog) { Peeks.activeSources(peekLog, packageName, nowSec) },
         )
     }
@@ -673,7 +690,7 @@ object DopaRuntime {
         return Lockouts.activeFor(
             all = lockouts.current(nowSec),
             packageName = packageName,
-            tagsOfApp = tagCache[packageName] ?: emptySet(),
+            tagsOfApp = tagsFor(packageName),
             nowSec = nowSec,
         )
     }
@@ -850,7 +867,7 @@ object DopaRuntime {
     /** 何らかのルールが対象にしているアプリか。監視の当たり判定を安く済ませるため。 */
     fun isTargeted(packageName: String): Boolean {
         if (initialized && packageName in protectedApps) return false
-        val tags = tagCache[packageName] ?: emptySet()
+        val tags = tagsFor(packageName)
         if (ruleCache.any { it.enabled && it.target.matches(packageName, tags) }) return true
         // 罰で閉まっているアプリも見に行く。ルールが狙っていない範囲まで閉める罰
         // (「逃がすもの以外ぜんぶ」など)があるので、ここを落とすと罰が効かない
@@ -894,7 +911,7 @@ object DopaRuntime {
     fun explain(packageName: String): List<RuleVerdict> {
         if (!initialized) return emptyList()
         val ctx = buildContext(packageName, now())
-        val tags = tagCache[packageName] ?: emptySet()
+        val tags = tagsFor(packageName)
         return ruleCache.map { rule ->
             RuleVerdict(
                 ruleName = rule.name,
@@ -973,18 +990,25 @@ object DopaRuntime {
         val now = now()
 
         // 罰が解ける時刻。ここで起きないと、時間が過ぎても画面が開かない
-        val tags = tagCache[packageName] ?: emptySet()
+        val tags = tagsFor(packageName)
         val lockLiftsInMs = lockouts.current()
             .filter { it.target.matches(packageName, tags) }
             .minOfOrNull { it.untilEpochSec }
             ?.let { it * 1000 - System.currentTimeMillis() }
 
-        val at = engine.nextChangeAt(ruleCache, buildContext(packageName, now)) {
-            tagCache[it] ?: emptySet()
+        val nowSec = System.currentTimeMillis() / 1000
+        val at = engine.nextChangeAt(Rules.effectiveAt(ruleCache, nowSec), buildContext(packageName, now)) {
+            tagsFor(it)
         }
         val ruleChangeInMs = at?.let { Duration.between(now, it).toMillis() }
 
-        val ms = listOfNotNull(lockLiftsInMs, ruleChangeInMs).minOrNull() ?: return ceilMs
+        // 一時停止が明ける時刻。ここで起きないと、明けても開いたままになる
+        val resumeInMs = Rules.nextResumeAt(
+            ruleCache.filter { it.target.matches(packageName, tags) },
+            nowSec,
+        )?.let { it * 1000 - System.currentTimeMillis() }
+
+        val ms = listOfNotNull(lockLiftsInMs, ruleChangeInMs, resumeInMs).minOrNull() ?: return ceilMs
         return ms.coerceIn(floorMs, ceilMs)
     }
 
@@ -1195,8 +1219,11 @@ object DopaRuntime {
         val nowMs = System.currentTimeMillis()
         val seed = sessionSeed()
         val out = ArrayList<PlannedReminder>()
-        val ups = engine.upcomingCloses(ruleCache, buildContext(packageName, now)) {
-            tagCache[it] ?: emptySet()
+        val ups = engine.upcomingCloses(
+            Rules.effectiveAt(ruleCache, System.currentTimeMillis() / 1000),
+            buildContext(packageName, now),
+        ) {
+            tagsFor(it)
         }
         for (up in ups) {
             val id = up.action.actionId
@@ -1254,7 +1281,54 @@ object DopaRuntime {
         publishRuleStatesIfDue()
         syncIfDue()
         startScheduledFocusIfDue()
+        applyPausesIfDue()
         return if (batterySaverMode) SAVER_TICK_MS else ACTIVE_TICK_MS
+    }
+
+    // ---- 時間で戻る一時停止 --------------------------------------------
+
+    @Volatile
+    private var lastPauseCheckMs = 0L
+
+    /**
+     * 関門を通り終えた一時停止を効かせる。待ち終えたら、その場で止まる。
+     *
+     * クールダウンは分単位なので、刻みごとに DB を引くほどの細かさは要らない。
+     */
+    private fun applyPausesIfDue() {
+        val now = System.currentTimeMillis()
+        if (now - lastPauseCheckMs < PAUSE_CHECK_MS) return
+        lastPauseCheckMs = now
+        scope.launch {
+            val applied = runCatching { changes.applyReadyPauses() }.getOrDefault(emptyList())
+            applied.forEach { notifyPaused(it.rule?.name.orEmpty(), it.pauseMinutes) }
+        }
+    }
+
+    /** 一時停止をすぐやめる。縛りを戻す方向なので関門は無い。 */
+    suspend fun resumeRule(ruleId: Long) {
+        rules.setPausedUntil(ruleId, 0L)
+    }
+
+    /**
+     * 止まったことと、いつ戻るかを知らせる。
+     *
+     * 戻る時刻を見せるのが要 ── 「戻る」と分かっていれば、止めたまま忘れることも、
+     * 戻ったのを不具合と思ってドパチルごと切ることも減る。
+     */
+    private fun notifyPaused(ruleName: String, minutes: Int) {
+        val until = java.time.LocalTime.now().plusMinutes(minutes.toLong())
+        val text = "「$ruleName」を${minutes}分止めました。" +
+            String.format("%d:%02d", until.hour, until.minute) + " に勝手に戻ります。"
+        val notification = androidx.core.app.NotificationCompat.Builder(appContext, com.dopachiru.DopaApplication.CHANNEL_GUARD)
+            .setSmallIcon(com.dopachiru.R.drawable.ic_notification)
+            .setContentTitle("ルールを一時停止しました")
+            .setContentText(text)
+            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true)
+            .build()
+        val manager = appContext.getSystemService(android.app.NotificationManager::class.java) ?: return
+        runCatching { manager.notify(PAUSE_NOTIFICATION_ID, notification) }
     }
 
     // ---- 自分で始めなくても始まる集中 ----------------------------------
@@ -1334,6 +1408,15 @@ object DopaRuntime {
      * 端末の画面を開いているあいだ・コードを出しているあいだだけ使う、短い刻みの同期。
      * 名簿は「お互いが一度ずつ同期する」まで埋まらず、5分刻みでは繋がったのか分からない。
      */
+    /**
+     * いますぐ同期する(待たない)。見張りが外れた・戻ったのを、ほかの端末に早く届けるため。
+     * 同期を設定していなければ何もしない。
+     */
+    fun syncSoon() {
+        if (!initialized) return
+        scope.launch { syncForRoster() }
+    }
+
     suspend fun syncForRoster() {
         lastSyncAtMs = System.currentTimeMillis()
         runCatching { sync.syncNow() }
@@ -1650,6 +1733,10 @@ object DopaRuntime {
     private const val PUBLISH_EVERY_MS = 60_000L
 
     private const val SYNC_EVERY_MS = 5L * 60 * 1000
+
+    /** 関門を通り終えた一時停止を見に行く間隔。待ちは分単位なので、これで足りる。 */
+    private const val PAUSE_CHECK_MS = 15_000L
+    private const val PAUSE_NOTIFICATION_ID = 1004
 
     private const val SAVER_TICK_MS = 180_000L
     private const val IDLE_TICK_MS = 600_000L

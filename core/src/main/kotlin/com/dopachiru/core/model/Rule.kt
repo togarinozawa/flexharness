@@ -46,13 +46,30 @@ data class Target(
         if (packageName in exceptPackages) return false
         if (exceptTags.any { it in tagsOfApp }) return false
         if (SitePattern.matchesAny(exceptSites, url)) return false
-        if (matchAll) return true
+        // 全指定は「本人が開いて使うアプリ」の全部であって、システムの裏方は含まない。
+        // 名指しやタグで選んだものは別 ── 選んだのなら、裏方でも当てる
+        if (matchAll && SYSTEM_TAG !in tagsOfApp) return true
         if (packageName in packages || tags.any { it in tagsOfApp }) return true
         return SitePattern.matchesAny(sites, url)
     }
 
     val isEmpty: Boolean
         get() = !matchAll && packages.isEmpty() && tags.isEmpty() && sites.isEmpty()
+
+    companion object {
+        /**
+         * 端末が付ける印。**全指定([matchAll])はこの印の付いたアプリを含まない。**
+         *
+         * 付けるのは、消せず・ホーム画面にも出ないシステムのアプリ(Google Play 開発者
+         * サービス、アンインストールの確認、権限の確認など)。本人が開いたのではなく、
+         * 別のアプリの用事で勝手に前に出てくる。許可リスト型でこれを止めると、
+         * ログインや権限の確認の途中でブロック画面が出て、許可したアプリまで使えなくなる。
+         *
+         * 印は判定のときに足すだけで、タグとして保存も同期もしない。`@` で始まる名前は
+         * 人が付けるタグとかち合わない。
+         */
+        const val SYSTEM_TAG = "@system"
+    }
 }
 
 /**
@@ -148,6 +165,16 @@ data class Rule(
      * 持ち時間の窓がリセットされます。読むときは [clauses] を使うこと。
      */
     val extraClauses: List<Clause> = emptyList(),
+
+    /**
+     * この時刻(エポック秒)まで一時停止。過ぎれば**誰の手も借りずに**また効く。0 なら止めていない。
+     *
+     * 無効化([enabled] = false)と分けてあるのは、戻るかどうかが違うから。無効化は
+     * 自分で戻すまで外れたまま ── 衝動で切ったものは、たいてい数日戻らない。
+     * 押し切る口が「無効にする」しか無いと、押し切った1回が半日・数日の空白になる。
+     * 時間で戻る止め方を用意して、押し切っても被害が区切られるようにする。
+     */
+    val pausedUntilSec: Long = 0L,
 ) {
     /**
      * 「条件 → こうする」の全部。1組目もここでは同じ形に揃う。
@@ -179,6 +206,12 @@ data class Rule(
 
     /** 期限つきか。一覧で印を付けるため。 */
     val isTemporary: Boolean get() = expiresAtSec > 0L
+
+    /** いま一時停止しているか。 */
+    fun isPausedAt(nowSec: Long): Boolean = pausedUntilSec > nowSec
+
+    /** いま効いているか(有効で、止めていない)。 */
+    fun isActiveAt(nowSec: Long): Boolean = enabled && !isPausedAt(nowSec)
 }
 
 /** ルール一覧の手入れ。端末側の保存方法に依存しないようここに置く。 */
@@ -188,4 +221,18 @@ object Rules {
 
     /** 落ちるものがあるか。無ければ書き戻さない(無駄な同期を起こさないため)。 */
     fun hasExpired(all: List<Rule>, nowSec: Long): Boolean = all.any { it.isExpiredAt(nowSec) }
+
+    /**
+     * 判定に渡す形。一時停止中のものは無効として渡す。
+     *
+     * エンジンは [Rule.enabled] だけを見ているので、ここで畳んでから渡す ──
+     * エンジンの側で時刻を見させると、判定のたびに時計を引く場所が増える。
+     */
+    fun effectiveAt(all: List<Rule>, nowSec: Long): List<Rule> =
+        if (all.none { it.isPausedAt(nowSec) }) all
+        else all.map { if (it.enabled && it.isPausedAt(nowSec)) it.copy(enabled = false) else it }
+
+    /** いちばん早く明ける一時停止の時刻。無ければ null。明けた瞬間に判定し直すため。 */
+    fun nextResumeAt(all: List<Rule>, nowSec: Long): Long? =
+        all.filter { it.enabled && it.isPausedAt(nowSec) }.minOfOrNull { it.pausedUntilSec }
 }

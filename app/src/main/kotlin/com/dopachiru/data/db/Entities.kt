@@ -68,6 +68,9 @@ data class RuleEntity(
     /** 1組目に重ねる動作を JSON にしたもの。空なら主の動作だけ。 */
     @ColumnInfo(defaultValue = "''") val extraActionsJson: String = "",
 
+    /** この時刻(エポック秒)まで一時停止。0 なら止めていない。過ぎれば勝手に戻る。 */
+    @ColumnInfo(defaultValue = "0") val pausedUntilSec: Long = 0L,
+
     val createdAt: Long,
     val updatedAt: Long,
 )
@@ -139,6 +142,13 @@ data class ChangeRequestEntity(
     val clearedGateKeys: String,
     /** このリクエストに課したゲートの一覧(JSON)。 */
     val gatesJson: String,
+    /**
+     * 無効化の申請のうち、時間で戻るもの(一時停止)の長さ(分)。0 ならずっと無効にする。
+     *
+     * 種類を増やさずここで分けるのは、種類(core の ChangeKind)を足すと、
+     * 凍結した Windows 版の分岐まで直す羽目になるため。
+     */
+    @ColumnInfo(defaultValue = "0") val pauseMinutes: Int = 0,
 )
 
 /**

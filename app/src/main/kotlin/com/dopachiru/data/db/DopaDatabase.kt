@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PointEventEntity::class,
         SyncStateEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class DopaDatabase : RoomDatabase() {
@@ -205,6 +205,24 @@ abstract class DopaDatabase : RoomDatabase() {
             "ALTER TABLE `rules` ADD COLUMN `extraActionsJson` TEXT NOT NULL DEFAULT ''",
         )
 
+        /**
+         * 8→9。ルールの一時停止(時間で戻る止め方)を足した(ver.0.42)。
+         *
+         * 無効化は自分で戻すまで外れたままで、衝動で切ったものは数日戻らなかった。
+         * 時刻を持たせて、過ぎたら勝手に戻るようにする。
+         */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_8_9_SQL.forEach { db.execSQL(it) }
+            }
+        }
+
+        /** 8→9 で流す SQL。生成物との突き合わせはテストが見ています。 */
+        internal val MIGRATION_8_9_SQL: List<String> = listOf(
+            "ALTER TABLE `rules` ADD COLUMN `pausedUntilSec` INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE `change_requests` ADD COLUMN `pauseMinutes` INTEGER NOT NULL DEFAULT 0",
+        )
+
         @Volatile
         private var instance: DopaDatabase? = null
 
@@ -223,6 +241,7 @@ abstract class DopaDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
+                        MIGRATION_8_9,
                     )
                     .build()
                     .also { instance = it }

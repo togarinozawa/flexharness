@@ -175,7 +175,7 @@ fun ChangeRequestScreen(viewModel: ChangeRequestViewModel = viewModel()) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(kindLabel(change.kind), style = MaterialTheme.typography.titleSmall)
+                        Text(changeLabel(change), style = MaterialTheme.typography.titleSmall)
                         Text(
                             formatTime(change.entity.createdAtEpochSec),
                             style = MaterialTheme.typography.labelSmall,
@@ -235,7 +235,7 @@ private fun PendingCard(
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text(kindLabel(change.kind), style = MaterialTheme.typography.labelMedium)
+            Text(changeLabel(change), style = MaterialTheme.typography.labelMedium)
             change.rule?.let {
                 Text(it.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
@@ -387,6 +387,10 @@ private fun gateStatusText(gate: Gate, change: PendingChange, nowMillis: Long): 
         }
         else -> gate.describe()
     }
+
+/** 一時停止は無効化と同じ種類で申請するので、長さがあればそちらを出す。 */
+private fun changeLabel(change: PendingChange): String =
+    if (change.pauseMinutes > 0) "${change.pauseMinutes}分の一時停止(時間で戻る)" else kindLabel(change.kind)
 
 private fun kindLabel(kind: ChangeKind): String = when (kind) {
     ChangeKind.CREATE -> "新規作成"
