@@ -18,6 +18,7 @@ import com.dopachiru.core.model.FocusSettings
 import com.dopachiru.core.model.OveruseSettings
 import com.dopachiru.core.model.Peek
 import com.dopachiru.service.ShortsGuardSettings
+import com.dopachiru.core.model.DeadlineTask
 import com.dopachiru.core.model.Reservation
 import com.dopachiru.core.model.ReservationPolicy
 import com.dopachiru.core.model.ReservationRules
@@ -68,6 +69,7 @@ class SettingsStore(private val context: Context) {
         val focusSettingsJson = stringPreferencesKey("focus_settings_json")
         val syncSettingsJson = stringPreferencesKey("sync_settings_json")
         val reservationsJson = stringPreferencesKey("reservations_json")
+        val deadlinesJson = stringPreferencesKey("deadlines_json")
         val deviceName = stringPreferencesKey("device_name")
         val devicesJson = stringPreferencesKey("devices_json")
         val commandsJson = stringPreferencesKey("commands_json")
@@ -213,6 +215,24 @@ class SettingsStore(private val context: Context) {
     suspend fun setReservations(list: List<Reservation>) {
         val encoded = DopaCore.json.encodeToString(ListSerializer(Reservation.serializer()), list)
         context.dataStore.edit { it[Keys.reservationsJson] = encoded }
+    }
+
+    /**
+     * 締切タスク。消したものも墓標として入っている(画面では隠す)。
+     *
+     * 件数は多くても数十なので、Room の表にせず JSON 1つで持つ。行の中に更新時刻が
+     * あるので、同期の覚え書きも要らない。
+     */
+    val deadlines: Flow<List<DeadlineTask>> = context.dataStore.data.map { prefs ->
+        val raw = prefs[Keys.deadlinesJson] ?: return@map emptyList()
+        runCatching {
+            DopaCore.json.decodeFromString(ListSerializer(DeadlineTask.serializer()), raw)
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun setDeadlines(list: List<DeadlineTask>) {
+        val encoded = DopaCore.json.encodeToString(ListSerializer(DeadlineTask.serializer()), list)
+        context.dataStore.edit { it[Keys.deadlinesJson] = encoded }
     }
 
     /**

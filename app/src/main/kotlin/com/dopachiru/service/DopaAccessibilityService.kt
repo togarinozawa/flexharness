@@ -51,6 +51,8 @@ import com.dopachiru.core.model.OveruseAlert
 import com.dopachiru.core.model.OveruseReaction
 import com.dopachiru.block.PeekControls
 import com.dopachiru.core.model.PeekCheck
+import com.dopachiru.MainActivity
+import com.dopachiru.core.model.DeadlineTasks
 import com.dopachiru.core.model.Focus
 import com.dopachiru.runtime.DopaRuntime
 import kotlinx.coroutines.flow.first
@@ -630,6 +632,19 @@ class DopaAccessibilityService : AccessibilityService() {
                     )
                 },
                 peek = peek,
+                onOpenDeadline = if (lockout.uid.startsWith(DeadlineTasks.LOCKOUT_PREFIX)) {
+                    {
+                        overlay.hide()
+                        runCatching {
+                            startActivity(
+                                Intent(this, MainActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
             )
         }
     }

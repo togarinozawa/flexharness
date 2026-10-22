@@ -32,6 +32,8 @@ import com.dopachiru.core.model.CommandVerdict
 import com.dopachiru.core.model.Commands
 import com.dopachiru.core.model.Focus
 import com.dopachiru.core.model.Lockout
+import com.dopachiru.core.model.DeadlineTask
+import com.dopachiru.core.model.DeadlineTasks
 import com.dopachiru.core.model.Lockouts
 import com.dopachiru.core.model.Reservation
 import com.dopachiru.core.model.ActionSpec
@@ -87,6 +89,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.LocalDateTime
 
 /** いま画面に出すべきもの。 */
@@ -131,6 +134,8 @@ sealed interface Presentation {
          * 罰は「押し切る手段はありません」、集中は「足せる・切り上げられる」。
          */
         val isFocus: Boolean = false,
+        /** 締切の集中か。罰でも自分で始めた集中でもない ── 終わり方は「終わった」だけ。 */
+        val isDeadline: Boolean = false,
         /** いま切り上げるのに要るポイント。0 なら無料。 */
         val abortCost: Int = 0,
         val balance: Int = 0,
@@ -993,6 +998,52 @@ object DesktopRuntime {
             noticeGuardChanges()
         }
         return outcome
+    }
+
+    // ---- 締切タスク --------------------------------------------------
+
+    /**
+     * 「終わった」にする。最低時間に届いていなければ断る。
+     *
+     * @return 断った理由。終われたら null。
+     */
+    fun finishDeadline(uid: String, note: String): String? {
+        val task = _ruleFile.value.deadlines.firstOrNull { it.uid == uid } ?: return "見つかりません"
+        val now = nowSec()
+        val canAt = task.canFinishAt(now, ZoneId.systemDefault())
+        if (now < canAt) return "あと${(canAt - now + 59) / 60}分は続けてください"
+        if (note.isBlank()) return "何をやったか一言書いてください"
+        putDeadline(task.copy(doneAtSec = now, doneNote = note.trim(), updatedAtSec = now))
+        return null
+    }
+
+    /**
+     * [DeadlineTask.PAUSE_MINUTES] 分だけ止める。時間帯に1回まで、理由を書く。
+     *
+     * @return 断った理由。止められたら null。
+     */
+    fun pauseDeadline(uid: String, note: String): String? {
+        val task = _ruleFile.value.deadlines.firstOrNull { it.uid == uid } ?: return "見つかりません"
+        val now = nowSec()
+        val zone = ZoneId.systemDefault()
+        val window = task.windowAt(now, zone) ?: return "いまは集中の時間帯ではありません"
+        if (!task.canPauseAt(now, zone)) return "この時間帯の一時停止はもう使いました"
+        if (note.isBlank()) return "なぜ止めたいか一言書いてください"
+        putDeadline(
+            task.copy(
+                pausedUntilSec = now + DeadlineTask.PAUSE_MINUTES * 60L,
+                pausedInWindowSec = window.first,
+                pauseNotes = (task.pauseNotes + note.trim()).takeLast(20),
+                updatedAtSec = now,
+            ),
+        )
+        return null
+    }
+
+    /** 1件差し替えて保存し、すぐ同期する(スマホの集中も同じタイミングで解けるように)。 */
+    private fun putDeadline(task: DeadlineTask) {
+        updateRules { file -> file.copy(deadlines = file.deadlines.filterNot { it.uid == task.uid } + task) }
+        syncInBackground()
     }
 
     /** 知らせ済みの「見張りが外れた」。端末と外れた時刻の組。同じものを何度も鳴らさない。 */
@@ -1901,7 +1952,8 @@ object DesktopRuntime {
         // 罰で閉まっているかは、押し切りの猶予より先に見る。
         // 押し切りの罰が猶予に隠れてしまうと、罰が一度も効かない
         val locked = Lockouts.activeFor(
-            all = live,
+            // 締切の集中は保存せず、時間帯のあいだだけ組み立てて足す。PC ではサイトだけ塞ぐ
+            all = live + DeadlineTasks.lockoutsAt(file.deadlines, nowSec, ZoneId.systemDefault(), withApps = false),
             packageName = fg.processName,
             tagsOfApp = file.tags[fg.processName] ?: emptySet(),
             nowSec = nowSec,
@@ -2000,6 +2052,7 @@ object DesktopRuntime {
             reason = lockout.reason,
             untilEpochSec = lockout.untilEpochSec,
             isFocus = lockout.isChosen,
+            isDeadline = lockout.uid.startsWith(DeadlineTasks.LOCKOUT_PREFIX),
             abortCost = if (lockout.canCancelFreelyAt(nowSec())) 0 else (lockout.earlyExit?.points ?: 0),
             balance = _balance.value,
         )

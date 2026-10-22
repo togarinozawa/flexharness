@@ -84,8 +84,29 @@ object SiteCatalog {
         ),
     )
 
+    /**
+     * アニメ・ドラマの配信。
+     *
+     * [VIDEO] と分けてあるのは、**1本見ると次の話が勝手に始まる**ところだから。
+     * 動画サイトは調べ物にも使うが、こちらは使い道がほぼ一つしかない。
+     */
+    val STREAMING = SiteGroup(
+        id = "streaming",
+        label = "アニメ・配信",
+        help = "1話見終わると次の話が始まるところ",
+        patterns = listOf(
+            "animestore.docomo.ne.jp",
+            "unext.jp",
+            "crunchyroll.com",
+            "hulu.jp",
+            "disneyplus.com",
+            "lemino.docomo.ne.jp",
+            "b-ch.com",
+        ),
+    )
+
     /** 画面に出す順。軽いものから。 */
-    val all: List<SiteGroup> = listOf(SHORT_VIDEO, SOCIAL, FORUM, VIDEO)
+    val all: List<SiteGroup> = listOf(SHORT_VIDEO, SOCIAL, FORUM, VIDEO, STREAMING)
 
     fun byId(id: String): SiteGroup? = all.firstOrNull { it.id == id }
 }

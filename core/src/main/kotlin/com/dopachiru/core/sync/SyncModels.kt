@@ -59,6 +59,14 @@ object SyncKinds {
     const val RULE_CATALOGS = "ruleCatalogs"
 
     /**
+     * 締切タスク([com.dopachiru.core.model.DeadlineTask])。
+     *
+     * スマホで入れた締切で、PC のブラウザも塞ぐために配る。消したことは行の中の
+     * deletedAtSec で表すので、封筒の墓標は使わない(どの端末も同じ形で混ぜられる)。
+     */
+    const val DEADLINES = "deadlines"
+
+    /**
      * 予約。**端末をまたいで配ります。**
      *
      * 予約は「冷静なうちに決めておく枠」なので、決める端末と使う端末が別でも

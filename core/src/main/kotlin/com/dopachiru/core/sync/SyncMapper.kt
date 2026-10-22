@@ -2,6 +2,7 @@ package com.dopachiru.core.sync
 
 import com.dopachiru.core.DopaCore
 import com.dopachiru.core.model.Command
+import com.dopachiru.core.model.DeadlineTask
 import com.dopachiru.core.model.Reservation
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -157,6 +158,20 @@ object SyncMapper {
         DopaCore.json.decodeFromJsonElement(Reservation.serializer(), envelope.payload)
             .copy(uid = envelope.uid, id = 0L)
     }.getOrNull()
+
+    // ---- 締切タスク -------------------------------------------------------
+
+    /** 時刻は行の中の [DeadlineTask.updatedAtSec] をそのまま使う。混ぜる側も同じものを見る。 */
+    fun deadlineEnvelope(task: DeadlineTask): Envelope = Envelope(
+        uid = task.uid,
+        updatedAt = task.updatedAtSec,
+        payload = DopaCore.json.encodeToJsonElement(DeadlineTask.serializer(), task) as JsonObject,
+    )
+
+    fun deadlineOf(envelope: Envelope): DeadlineTask? = runCatching {
+        DopaCore.json.decodeFromJsonElement(DeadlineTask.serializer(), envelope.payload)
+            .copy(uid = envelope.uid)
+    }.getOrNull()?.takeIf { it.uid.isNotBlank() }
 
     // ---- 頼みごと ---------------------------------------------------------
 

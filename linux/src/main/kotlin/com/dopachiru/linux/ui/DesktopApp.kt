@@ -397,6 +397,9 @@ private fun TodayTab() {
             Spacer(Modifier.height(16.dp))
         }
 
+        // 締切の集中。入れるのはスマホで、ここでは「終わった」と一時停止
+        DeadlinePanel()
+
         if (settings.pointPolicy.enabled) {
             PointCard(
                 balance = balance,

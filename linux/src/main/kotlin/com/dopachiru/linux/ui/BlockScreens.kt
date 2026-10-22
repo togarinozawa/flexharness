@@ -384,14 +384,19 @@ fun LockedScreen(
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                "お預け中",
+                if (locked.isDeadline) "締切の集中中" else "お預け中",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.error,
+                color = if (locked.isDeadline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                if (locked.reason.isBlank()) "ルールを破った罰" else "「${locked.reason}」を破った罰",
+                when {
+                    // 締切の集中は罰ではない。「破った罰」と出すと嘘になる
+                    locked.isDeadline -> locked.reason
+                    locked.reason.isBlank() -> "ルールを破った罰"
+                    else -> "「${locked.reason}」を破った罰"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -422,7 +427,15 @@ fun LockedScreen(
             ) {
                 Text("このアプリを閉じる", modifier = Modifier.padding(vertical = 6.dp))
             }
-            if (locked.isFocus) {
+            if (locked.isDeadline) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "終わったら、ドパチルの「今日」で「終わった」に。残りは今日の集中の時間帯の終わりまでです。",
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (locked.isFocus) {
                 Spacer(Modifier.height(20.dp))
                 FocusPanel(locked, onExtendFocus, onEndFocus)
             } else {

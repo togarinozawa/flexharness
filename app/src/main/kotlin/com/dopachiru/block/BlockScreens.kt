@@ -632,7 +632,15 @@ fun LockoutScreen(
     focus: FocusControls? = null,
     /** 集中にのぞきを入れてあるときだけ渡す。罰では渡さない。 */
     peek: PeekControls? = null,
+    /**
+     * 締切の集中のときだけ渡す。ドパチルを開く(「終わった」・一時停止はそこで)。
+     *
+     * 締切の集中は罰ではないので「破った罰」と出してはいけない。かといって
+     * 自分で始めた集中の「切り上げる」も無い ── 終わり方は「終わった」だけ。
+     */
+    onOpenDeadline: (() -> Unit)? = null,
 ) = DopaBlockTheme {
+    val isDeadline = onOpenDeadline != null
     var showPeekGate by remember { mutableStateOf(false) }
     var remainingSec by remember(untilEpochSec) {
         mutableIntStateOf((untilEpochSec - System.currentTimeMillis() / 1000).coerceAtLeast(0).toInt())
@@ -666,10 +674,14 @@ fun LockoutScreen(
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                text = if (focus != null) "集中中" else "お預け中",
+                text = when {
+                    isDeadline -> "締切の集中中"
+                    focus != null -> "集中中"
+                    else -> "お預け中"
+                },
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Medium,
-                color = if (focus != null) {
+                color = if (focus != null || isDeadline) {
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.error
@@ -681,18 +693,19 @@ fun LockoutScreen(
             // 残り時間だけを眺めることになるので、集中のときは大きく出す
             Text(
                 text = when {
+                    isDeadline -> reason
                     focus != null -> reason.ifBlank { "自分で始めた集中" }
                     reason.isBlank() -> "ルールを破った罰"
                     else -> "「$reason」を破った罰"
                 },
-                style = if (focus != null) {
+                style = if (focus != null || isDeadline) {
                     MaterialTheme.typography.titleLarge
                 } else {
                     MaterialTheme.typography.bodyMedium
                 },
-                fontWeight = if (focus != null) FontWeight.Medium else FontWeight.Normal,
+                fontWeight = if (focus != null || isDeadline) FontWeight.Medium else FontWeight.Normal,
                 textAlign = TextAlign.Center,
-                color = if (focus != null) {
+                color = if (focus != null || isDeadline) {
                     MaterialTheme.colorScheme.onBackground
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
@@ -725,7 +738,23 @@ fun LockoutScreen(
                 Text("ホームに戻る", modifier = Modifier.padding(vertical = 6.dp))
             }
 
-            if (focus == null) {
+            if (onOpenDeadline != null) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onOpenDeadline,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Text("終わった・一時停止(ドパチルを開く)", modifier = Modifier.padding(vertical = 6.dp))
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "残り時間は今日の集中の時間帯の終わりまで。終わったら、そこで開きます。",
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (focus == null) {
                 Spacer(Modifier.height(10.dp))
                 Text(
                     "押し切る手段はありません。時間が過ぎれば自動で開きます。",

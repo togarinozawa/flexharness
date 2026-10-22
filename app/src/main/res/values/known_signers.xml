@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      学習予定を送り込んでよい、ドパチル以外の署名(証明書の SHA-256)。
+
+      ドパチルは 0.42.0 から専用の鍵で署名していて、スキマスとは鍵が違う。
+      signature だけだと、スキマスから届いた学習予定が黙って捨てられる。
+      指紋は証明書の要約で、鍵そのものではないので公開してよい。
+    -->
+    <string-array name="known_study_signers">
+        <!-- スキマス(dev.togar.dynasched)のリリース鍵 -->
+        <item>eebe5f658b8acfdb8a0a2a093cfe50999c1bdab36fa4dd1417a9a6571490d8ff</item>
+    </string-array>
+</resources>

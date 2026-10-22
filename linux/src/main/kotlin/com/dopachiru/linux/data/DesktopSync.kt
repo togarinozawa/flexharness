@@ -1,5 +1,6 @@
 package com.dopachiru.linux.data
 
+import com.dopachiru.core.model.DeadlineTasks
 import com.dopachiru.core.model.Reservation
 import com.dopachiru.core.model.ReservationPolicy
 import com.dopachiru.core.model.Rule
@@ -161,6 +162,17 @@ object DesktopSync {
                 devices = next.devices.filterNot { it.deviceId == info.deviceId } + info,
             ).withStamp(SyncKinds.DEVICES, envelope.uid, SyncStamp(envelope.updatedAt, false))
             pulled++
+        }
+
+        // ---- 締切タスク ------------------------------------------------
+        // 行の中の更新時刻で新しいほうを残す。墓標も行の中にあるので覚え書きは要らない
+        val incomingDeadlines = response.of(SyncKinds.DEADLINES).mapNotNull { SyncMapper.deadlineOf(it) }
+        if (incomingDeadlines.isNotEmpty()) {
+            val (merged, changed) = DeadlineTasks.merge(next.deadlines, incomingDeadlines)
+            if (changed) {
+                next = next.copy(deadlines = DeadlineTasks.prune(merged, nowSec()))
+                pulled++
+            }
         }
 
         // ---- 予約 ------------------------------------------------------
@@ -358,6 +370,8 @@ object DesktopSync {
             SyncKinds.RESERVATIONS to reservationEnvelopes,
             SyncKinds.COMMANDS to commands,
             SyncKinds.RULE_STATES to ruleStates,
+            // 件数は多くないので毎回ぜんぶ送る。サーバーは古いほうを捨てる
+            SyncKinds.DEADLINES to file.deadlines.map { SyncMapper.deadlineEnvelope(it) },
         )
     }
 

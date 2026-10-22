@@ -69,6 +69,9 @@ fun FocusScreen(
     ) {
         item { if (running != null) RunningCard(running) else StartCard() }
 
+        // 自分で始めなくても始まる集中。始める気が起きない晩のためのものなので、上のほうに置く
+        item { DeadlineCard() }
+
         item { TodayRulesCard(onCreateFromScratch = onCreateTodayRule, onEdit = onEditRule) }
 
         item { ScheduleCard(schedules, onOpenSettings) }

@@ -4,6 +4,7 @@ import android.content.Context
 import com.dopachiru.core.sync.AppInfo
 import com.dopachiru.core.sync.DeviceInfo
 import com.dopachiru.core.sync.Envelope
+import com.dopachiru.core.model.DeadlineTasks
 import com.dopachiru.core.model.ReservationRules
 import com.dopachiru.core.sync.MergeAction
 import com.dopachiru.core.sync.RuleCatalog
@@ -87,6 +88,16 @@ class SyncManager(
             response.of(SyncKinds.RULE_CATALOGS),
         )
 
+        // 締切タスク。行の中の更新時刻で新しいほうを残す(墓標も行の中)
+        val incomingDeadlines = response.of(SyncKinds.DEADLINES).mapNotNull { SyncMapper.deadlineOf(it) }
+        val deadlinesPulled = if (incomingDeadlines.isEmpty()) {
+            0
+        } else {
+            val (merged, changed) = DeadlineTasks.merge(settingsStore.deadlines.first(), incomingDeadlines)
+            if (changed) settingsStore.setDeadlines(merged)
+            if (changed) incomingDeadlines.size else 0
+        }
+
         // 実績は別の口。落ちても同期そのものは成立したことにする ──
         // ルールが配れているのに「失敗」と出ると、直す先を見誤る
         val usageError = when (
@@ -109,7 +120,7 @@ class SyncManager(
         // 墓標は十分に長く置いてから落とす。短いと、長く寝ていた端末が復活させる
         syncStateDao.purgeTombstones(System.currentTimeMillis() / 1000 - TOMBSTONE_KEEP_SEC)
 
-        Outcome.Done(pulled = pulled, pushed = outgoing.values.sumOf { it.size })
+        Outcome.Done(pulled = pulled + deadlinesPulled, pushed = outgoing.values.sumOf { it.size })
     }
 
     private suspend fun fail(settings: SyncSettings, message: String): Outcome {
@@ -194,6 +205,8 @@ class SyncManager(
             SyncKinds.RESERVATIONS to reservationEnvelopes,
             SyncKinds.COMMANDS to commandEnvelopes,
             SyncKinds.RULE_STATES to stateEnvelopes,
+            // 件数は多くないので毎回ぜんぶ送る。サーバーは古いほうを捨てる
+            SyncKinds.DEADLINES to settingsStore.deadlines.first().map { SyncMapper.deadlineEnvelope(it) },
         )
     }
 

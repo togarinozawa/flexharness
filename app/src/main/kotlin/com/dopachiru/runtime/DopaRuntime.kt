@@ -36,6 +36,8 @@ import com.dopachiru.core.model.Peek
 import com.dopachiru.core.model.PeekAllowance
 import com.dopachiru.core.model.PeekCheck
 import com.dopachiru.core.model.Peeks
+import com.dopachiru.core.model.DeadlineTask
+import com.dopachiru.core.model.DeadlineTasks
 import com.dopachiru.core.model.Rule
 import com.dopachiru.core.model.Rules
 import com.dopachiru.core.param.Params
@@ -279,6 +281,7 @@ object DopaRuntime {
                 recomputeCalendarNeed()
             }
         }
+        scope.launch { settings.deadlines.collect { deadlineCache = it } }
         scope.launch {
             settings.syncSettings.collect {
                 myDeviceId = it.deviceId
@@ -625,7 +628,7 @@ object DopaRuntime {
         val nowSec = System.currentTimeMillis() / 1000
         return engine.decide(
             rules = Rules.effectiveAt(scopedRules, nowSec),
-            lockouts = lockouts.current(nowSec),
+            lockouts = allLockouts(nowSec),
             ctx = buildContext(packageName, now),
             nowSec = nowSec,
             passUntilSec = passUntilSec,
@@ -688,7 +691,7 @@ object DopaRuntime {
         if (!initialized) return null
         val nowSec = System.currentTimeMillis() / 1000
         return Lockouts.activeFor(
-            all = lockouts.current(nowSec),
+            all = allLockouts(nowSec),
             packageName = packageName,
             tagsOfApp = tagsFor(packageName),
             nowSec = nowSec,
@@ -871,8 +874,10 @@ object DopaRuntime {
         if (ruleCache.any { it.enabled && it.target.matches(packageName, tags) }) return true
         // 罰で閉まっているアプリも見に行く。ルールが狙っていない範囲まで閉める罰
         // (「逃がすもの以外ぜんぶ」など)があるので、ここを落とすと罰が効かない
-        return initialized &&
-            lockouts.current().any { it.target.matches(packageName, tags) }
+        if (!initialized) return false
+        if (lockouts.current().any { it.target.matches(packageName, tags) }) return true
+        // 締切の集中は時間帯が来るまで封鎖が無いが、来た瞬間に閉めるために今から見張る
+        return DeadlineTasks.willTarget(deadlineCache, System.currentTimeMillis() / 1000, packageName, tags)
     }
 
     /** 学習予定の最中か。押し切りを止めるかどうかの判断に使う。 */
@@ -996,6 +1001,13 @@ object DopaRuntime {
             .minOfOrNull { it.untilEpochSec }
             ?.let { it * 1000 - System.currentTimeMillis() }
 
+        // 締切の集中が始まる・終わる・一時停止が明ける時刻
+        val deadlineChangeInMs = DeadlineTasks.nextChangeAt(
+            deadlineCache.filter { DeadlineTasks.willTarget(listOf(it), System.currentTimeMillis() / 1000, packageName, tags) },
+            System.currentTimeMillis() / 1000,
+            java.time.ZoneId.systemDefault(),
+        )?.let { it * 1000 - System.currentTimeMillis() }
+
         val nowSec = System.currentTimeMillis() / 1000
         val at = engine.nextChangeAt(Rules.effectiveAt(ruleCache, nowSec), buildContext(packageName, now)) {
             tagsFor(it)
@@ -1008,7 +1020,7 @@ object DopaRuntime {
             nowSec,
         )?.let { it * 1000 - System.currentTimeMillis() }
 
-        val ms = listOfNotNull(lockLiftsInMs, ruleChangeInMs, resumeInMs).minOrNull() ?: return ceilMs
+        val ms = listOfNotNull(lockLiftsInMs, ruleChangeInMs, resumeInMs, deadlineChangeInMs).minOrNull() ?: return ceilMs
         return ms.coerceIn(floorMs, ceilMs)
     }
 
@@ -1303,6 +1315,76 @@ object DopaRuntime {
             val applied = runCatching { changes.applyReadyPauses() }.getOrDefault(emptyList())
             applied.forEach { notifyPaused(it.rule?.name.orEmpty(), it.pauseMinutes) }
         }
+    }
+
+    // ---- 締切タスク --------------------------------------------------
+
+    @Volatile
+    private var deadlineCache: List<DeadlineTask> = emptyList()
+
+    /** 判定に使う封鎖。保存してあるもの(罰・自分で始めた集中)と、締切の集中。 */
+    private fun allLockouts(nowSec: Long): List<Lockout> =
+        lockouts.current(nowSec) +
+            DeadlineTasks.lockoutsAt(deadlineCache, nowSec, java.time.ZoneId.systemDefault(), withApps = true)
+
+    /** 締切タスク。消したもの(墓標)も入っている。画面では [DeadlineTasks.visible] を通す。 */
+    val deadlines: Flow<List<DeadlineTask>> get() = settings.deadlines
+
+    /**
+     * 締切タスクを入れる・変える。**時間帯の中で緩める変更はできない**(呼ぶ側で止めてある)。
+     * 変えたらすぐ同期する ── PC のブラウザも同じ時間帯に閉めたいので。
+     */
+    suspend fun saveDeadline(task: DeadlineTask) {
+        val now = System.currentTimeMillis() / 1000
+        val stamped = task.copy(updatedAtSec = now)
+        val list = settings.deadlines.first()
+        settings.setDeadlines(DeadlineTasks.prune(list.filterNot { it.uid == task.uid } + stamped, now))
+        syncSoon()
+    }
+
+    /** 消す。行は残して墓標にする(寝ていた端末が送り返して生き返らせないように)。 */
+    suspend fun deleteDeadline(uid: String) {
+        val task = settings.deadlines.first().firstOrNull { it.uid == uid } ?: return
+        val now = System.currentTimeMillis() / 1000
+        saveDeadline(task.copy(deletedAtSec = now))
+    }
+
+    /**
+     * 「終わった」にする。最低時間に届いていなければ断る。
+     *
+     * @return 断った理由。終われたら null。
+     */
+    suspend fun finishDeadline(uid: String, note: String): String? {
+        val task = settings.deadlines.first().firstOrNull { it.uid == uid } ?: return "見つかりません"
+        val now = System.currentTimeMillis() / 1000
+        val zone = java.time.ZoneId.systemDefault()
+        val canAt = task.canFinishAt(now, zone)
+        if (now < canAt) return "あと${(canAt - now + 59) / 60}分は続けてください"
+        if (note.isBlank()) return "何をやったか一言書いてください"
+        saveDeadline(task.copy(doneAtSec = now, doneNote = note.trim()))
+        return null
+    }
+
+    /**
+     * [DeadlineTask.PAUSE_MINUTES] 分だけ止める。時間帯に1回まで、理由を書く。
+     *
+     * @return 断った理由。止められたら null。
+     */
+    suspend fun pauseDeadline(uid: String, note: String): String? {
+        val task = settings.deadlines.first().firstOrNull { it.uid == uid } ?: return "見つかりません"
+        val now = System.currentTimeMillis() / 1000
+        val zone = java.time.ZoneId.systemDefault()
+        val window = task.windowAt(now, zone) ?: return "いまは集中の時間帯ではありません"
+        if (!task.canPauseAt(now, zone)) return "この時間帯の一時停止はもう使いました"
+        if (note.isBlank()) return "なぜ止めたいか一言書いてください"
+        saveDeadline(
+            task.copy(
+                pausedUntilSec = now + DeadlineTask.PAUSE_MINUTES * 60L,
+                pausedInWindowSec = window.first,
+                pauseNotes = (task.pauseNotes + note.trim()).takeLast(20),
+            ),
+        )
+        return null
     }
 
     /** 一時停止をすぐやめる。縛りを戻す方向なので関門は無い。 */

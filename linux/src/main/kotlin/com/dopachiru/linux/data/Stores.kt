@@ -10,6 +10,7 @@ import com.dopachiru.core.sync.RuleCatalog
 import com.dopachiru.core.sync.RuleState
 import com.dopachiru.core.sync.SyncSettings
 import com.dopachiru.core.model.Reservation
+import com.dopachiru.core.model.DeadlineTask
 import com.dopachiru.core.model.Rule
 import com.dopachiru.core.points.PointEvent
 import com.dopachiru.core.points.PointPolicy
@@ -159,6 +160,13 @@ data class RuleFile(
      * ルールは配らないので、スマホのルールを予約や連動で指すにはこれが要る。
      */
     val ruleCatalogs: List<RuleCatalog> = emptyList(),
+
+    /**
+     * 締切タスク。スマホで入れたものが同期で届く。消したものも墓標として入っている。
+     *
+     * PC では時間帯のあいだ**サイトだけ**塞ぐ([DeadlineTask.blockSites])。
+     */
+    val deadlines: List<DeadlineTask> = emptyList(),
 
     /**
      * 同期の覚え書き。Android の `sync_state` 表にあたるもの。

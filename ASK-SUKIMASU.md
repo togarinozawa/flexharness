@@ -72,8 +72,12 @@
 - **`intent.setPackage("com.dopachiru")` が必須。** Android 8 以降、宛先の無い
   ブロードキャストはマニフェスト登録の受信機に届きません。付け忘れるとエラーも出ずに無反応
 - **`<uses-permission android:name="com.dopachiru.permission.SYNC_STUDY" />` が必要。**
-  signature 保護なので、両アプリを**同じ鍵で署名**してください。鍵が違うとインストールは
-  できますがブロードキャストは黙って捨てられます
+  ドパチルは 0.42.0 から専用の鍵で署名しています。スキマスのリリース鍵(SHA-256 `eebe5f65…d8ff`)は
+  ドパチル側の `knownCerts` に入れてあるので、Android 12 以上ならそのまま届きます。
+  **スキマスの鍵を替えたら知らせてください。** 指紋が合わないとブロードキャストは黙って捨てられます
+- **逆向きも同じです。** ドパチルは `dev.togar.dynasched.permission.CONTROL_SESSION` を使います。
+  これが signature 保護なら、スキマス側の `knownCerts` にドパチルの鍵
+  (SHA-256 `d4a015b4a3fb8d39541ad54efdd31ebb3b0376f511a44ccc42c7051859e9ea73`)を足してください
 
 ### 5. `GET /dopachiru/study/windows` — **保留**
 
