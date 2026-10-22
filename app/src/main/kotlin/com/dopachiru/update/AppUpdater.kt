@@ -91,7 +91,7 @@ object AppUpdater {
     suspend fun download(context: Context, build: ReleaseBuild) {
         cancelled = false
         _state.value = State.Downloading(build, 0)
-        val dest = File(updatesDir(context), build.fileName.ifBlank { "dopachiru-update.apk" })
+        val dest = File(updatesDir(context), build.fileName.ifBlank { "flexharness-update.apk" })
 
         val result = withContext(Dispatchers.IO) {
             Downloader.download(

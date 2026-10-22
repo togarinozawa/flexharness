@@ -1202,7 +1202,7 @@ private fun RuleTransferSection() {
 private fun chooseFile(save: Boolean): String? {
     val dialog = FileDialog(null as Frame?, if (save) "書き出し先" else "読み込むファイル",
         if (save) FileDialog.SAVE else FileDialog.LOAD)
-    if (save) dialog.file = "dopachiru-rules.json"
+    if (save) dialog.file = "flexharness-rules.json"
     dialog.isVisible = true
     val dir = dialog.directory ?: return null
     val name = dialog.file ?: return null
@@ -1646,7 +1646,7 @@ private fun AboutSection() {
     Spacer(Modifier.height(4.dp))
     Text(
         "ルールより強く、ここからも外せません。タスクマネージャを入れてあるのは、" +
-            "ドパチル自身を必ず止められるようにしておくためです。",
+            "FlexHarness自身を必ず止められるようにしておくためです。",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -1663,7 +1663,7 @@ private fun AboutSection() {
     UpdateSection()
     Spacer(Modifier.height(16.dp))
     Text(
-        "ドパチル " + desktopVersion(),
+        "FlexHarness " + desktopVersion(),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -1762,7 +1762,7 @@ private fun UpdateSection() {
             Text(
                 // 自分で自分を閉じてから渡すと、断ったときに
                 // 「閉じただけで何も入っていない」になる
-                "パスワードを聞かれたあと入れ替わります。終わったらドパチルを" +
+                "パスワードを聞かれたあと入れ替わります。終わったらFlexHarnessを" +
                     "トレイから終了して、立ち上げ直してください。ルールも記録も残ります。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -1,5 +1,5 @@
 /**
- * ドパチル同期用のテーブル。
+ * FlexHarness同期用のテーブル。
  *
  * スキマス側の流儀に合わせて `CREATE TABLE IF NOT EXISTS` だけで組んであり、
  * 何度呼んでも安全です。マイグレーションフレームワークは使いません。
@@ -26,7 +26,7 @@ function initDopachiruSchema(db) {
 
     -- 同期する実体を1つのテーブルにまとめて置く。
     -- payload は中身を見ない JSON。ルールの条件が増えても、同期する種類が増えても、
-    -- ここのスキーマは変わらない(ドパチル本体が条件を JSON 1本で持っているのと同じ考え)。
+    -- ここのスキーマは変わらない(FlexHarness本体が条件を JSON 1本で持っているのと同じ考え)。
     CREATE TABLE IF NOT EXISTS dopachiru_entities (
       user_id    INTEGER NOT NULL DEFAULT 1,
       kind       TEXT    NOT NULL,              -- 'rules' | 'tags' | 'gates' | 'changeRequests'

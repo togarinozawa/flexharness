@@ -57,7 +57,7 @@ object UsageReport {
         val clipped = spans.mapNotNull { clip(it, fromSec, nowSec) }
 
         val out = StringBuilder()
-        out.appendLine("# ドパチル 使用状況")
+        out.appendLine("# FlexHarness 使用状況")
         out.appendLine()
         out.appendLine("- 端末: " + deviceName.ifBlank { "(名前なし)" })
         out.appendLine(
@@ -272,7 +272,7 @@ object UsageReport {
         out.appendLine()
         out.appendLine("## Claude へ")
         out.appendLine()
-        out.appendLine("この記録から、ドパチルのルール案を作ってください。お願いしたいこと:")
+        out.appendLine("この記録から、FlexHarnessのルール案を作ってください。お願いしたいこと:")
         out.appendLine()
         out.appendLine("1. **時間帯の山と、1回の長さ**を根拠にすること。合計だけで決めない")
         out.appendLine("2. 上の「いまのルール」と**重ならない**こと。既にあるものは作り直さない")

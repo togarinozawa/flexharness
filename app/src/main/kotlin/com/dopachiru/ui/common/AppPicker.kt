@@ -135,9 +135,9 @@ fun AppPickerList(
             Text(
                 if (usage.isEmpty()) {
                     "使用時間の記録がまだありません。端末の使用状況を許可すると、" +
-                        "ドパチルを入れる前のぶんも出ます。"
+                        "FlexHarnessを入れる前のぶんも出ます。"
                 } else {
-                    "ドパチルが記録した直近48時間ぶんです。端末の使用状況を許可すると1週間ぶん出ます。"
+                    "FlexHarnessが記録した直近48時間ぶんです。端末の使用状況を許可すると1週間ぶん出ます。"
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

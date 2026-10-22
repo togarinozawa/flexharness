@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ドパチル</string>
-    <string name="accessibility_service_label">ドパチル 監視</string>
+    <string name="app_name">FlexHarness</string>
+    <string name="accessibility_service_label">FlexHarness 監視</string>
     <string name="accessibility_service_description">アプリの切り替えを検知して、あなたが自分で決めた制限を実行します。取得した情報は端末の外に出ません。</string>
 
     <string name="notification_channel_monitor">常駐監視</string>
-    <string name="notification_monitor_title">ドパチル 稼働中</string>
+    <string name="notification_monitor_title">FlexHarness 稼働中</string>
     <string name="notification_channel_guard">見張りが外れたときの警告</string>
     <string name="notification_channel_overuse">使い過ぎの知らせ</string>
     <string name="focus_15">15分集中</string>
@@ -21,7 +21,7 @@
     <string name="widget_focus_idle_note">長さを選ぶと、その場で手が止まります。電話・ホーム・設定は開いたままです。</string>
     <string name="widget_focus_running_title">集中中</string>
     <string name="widget_focus_pick">選ぶ</string>
-    <string name="widget_focus_open">ドパチルを開く</string>
+    <string name="widget_focus_open">FlexHarnessを開く</string>
     <string name="widget_focus_stop">切り上げる(本体を開きます)</string>
     <string name="widget_focus_extend_warning">足したら戻せません(切り上げには手間とポイント)</string>
 </resources>

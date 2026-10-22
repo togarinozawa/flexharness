@@ -1,4 +1,4 @@
-# ドパチル 技術リスク事前検証レポート
+# FlexHarness 技術リスク事前検証レポート
 
 対象設計書: `dopa_design_doc.md` v0.1
 調査日: 2026-08-06
@@ -79,7 +79,7 @@
 
 **方法1: 端末上の操作**
 1. まず Accessibility の有効化を試みて**ブロックされる**(これをやらないと次のメニューが出ない)
-2. 設定 → アプリ → ドパチル → 右上 ⋮ → 「制限された設定を許可」
+2. 設定 → アプリ → FlexHarness → 右上 ⋮ → 「制限された設定を許可」
 3. 画面ロック認証
 
 **方法2: adb(こちらが確実)**
@@ -156,7 +156,7 @@ Android 12 で `Window.setHideOverlayWindows(true)` が追加され、アプリ�
 - リポジトリ: https://github.com/curbox-app/curbox-android
 - F-Droid: https://f-droid.org/en/packages/neth.iecal.curbox/
 
-AccessibilityService ベースの検知 + オーバーレイ、アプリ内の特定機能(Reels / Shorts)だけをブロック、解除の「摩擦(friction)」をユーザーが選べる設計 — と、ドパチルの構想とかなり重なる。**フェーズ0を書く前に、この実装のオーバーレイ周りを読むのが最も効率的。**
+AccessibilityService ベースの検知 + オーバーレイ、アプリ内の特定機能(Reels / Shorts)だけをブロック、解除の「摩擦(friction)」をユーザーが選べる設計 — と、FlexHarnessの構想とかなり重なる。**フェーズ0を書く前に、この実装のオーバーレイ周りを読むのが最も効率的。**
 
 ---
 

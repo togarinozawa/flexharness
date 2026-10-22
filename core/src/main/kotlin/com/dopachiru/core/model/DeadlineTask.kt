@@ -55,7 +55,7 @@ data class DeadlineTask(
     /**
      * 集中のあいだも開けるアプリ(Android のパッケージ名)。
      *
-     * 教科書・問題集・ブラウザなど。電話・ホーム・設定・ドパチル自身は書かなくても開く。
+     * 教科書・問題集・ブラウザなど。電話・ホーム・設定・FlexHarness自身は書かなくても開く。
      */
     val allowPackages: Set<String> = emptySet(),
     /** 集中のあいだも開けるタグ。 */
@@ -81,7 +81,7 @@ data class DeadlineTask(
     /**
      * この時刻まで一時停止。時間で勝手に戻る。
      *
-     * 押し切る口が無いと、ドパチルごと切られて数時間戻らない。戻ると分かっている
+     * 押し切る口が無いと、FlexHarnessごと切られて数時間戻らない。戻ると分かっている
      * 止め方を1つだけ用意する。**1つの時間帯に1回まで**([pausedInWindowSec])。
      */
     val pausedUntilSec: Long = 0L,
@@ -206,7 +206,7 @@ object DeadlineTasks {
     ): List<Lockout> = all.flatMap { task ->
         val window = task.windowAt(nowSec, zone) ?: return@flatMap emptyList()
         if (task.pausedUntilSec > nowSec) return@flatMap emptyList()
-        val reason = "締切「${task.title}」の集中中。終わったらドパチルで「終わった」にしてください"
+        val reason = "締切「${task.title}」の集中中。終わったらFlexHarnessで「終わった」にしてください"
         buildList {
             if (withApps) {
                 add(

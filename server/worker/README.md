@@ -1,4 +1,4 @@
-# ドパチル同期サーバー (Cloudflare Workers + D1)
+# FlexHarness同期サーバー (Cloudflare Workers + D1)
 
 ## なぜここに置いたか
 
@@ -119,7 +119,7 @@ npx wrangler d1 execute dopachiru --remote --command "UPDATE dopachiru_device_to
 出した版に致命的な不具合があったら、`src/index.js` の `PINNED` に一つ前を書いて
 deploy すれば、まだ落としていない端末はそこで止まります。
 
-版はリリースに付けたファイル名(`dopachiru-0.25.0.apk`)から読みます。
+版はリリースに付けたファイル名(`flexharness-0.44.0.apk`。前の名前の `dopachiru-…` も読む)から読みます。
 どこにも版を書き写さないので、**書き写し忘れて「最新です」と嘘をつく**ことがありません。
 
 ## ルールが効いているかを配る(ruleStates)

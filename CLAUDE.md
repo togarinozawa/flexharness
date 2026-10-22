@@ -1,6 +1,11 @@
-# ドパチル (dopachiru)
+# FlexHarness
 
 個人用のアプリ使用制限アプリ。Kotlin + Compose Multiplatform。
+
+0.44.0 で「ドパチル」から名前を変えた。**変えたのは人に見える名前だけ。**
+`com.dopachiru`(applicationId・パッケージ名)、データの置き場所(`~/.local/share/dopachiru` など)、
+サーバー(`dopachiru-sync`・`dopa.togar.dev`)は前のまま ── applicationId を変えると
+上書き更新できなくなり、置き場所を変えるとルールも記録も消えて見える。
 
 ## 構成
 
@@ -61,15 +66,17 @@ Room のマイグレーションは、手書きの SQL と生成されたスキ�
 
 **`dist/` の名前のまま上げること。** `/version`(自動更新)が名前から版を読むので、
 名前が合わないと更新が届かない。`build/` の中の jpackage 生の
-`dopachiru_x.y.z_amd64.deb` を上げると**この事故が起きる**:
+`flexharness_x.y.z_amd64.deb` を上げると**この事故が起きる**:
 
 ```
-dopachiru-<app版>.apk              例 dopachiru-0.31.0.apk
-dopachiru-linux-<linux版>.deb      例 dopachiru-linux-1.0.0.deb
-dopachiru-linux-<linux版>.tar.gz   持ち運び版
+flexharness-<app版>.apk              例 flexharness-0.44.0.apk
+flexharness-linux-<linux版>.deb      例 flexharness-linux-1.3.0.deb
+flexharness-linux-<linux版>.tar.gz   持ち運び版
 ```
 
-**APK はドパチル専用の鍵で署名する。** 在り処と合言葉は `keystore.properties`(gitignore 済み)、
+`/version` は前の名前(`dopachiru-…`)のファイルも読む。
+
+**APK は FlexHarness 専用の鍵で署名する。** 在り処と合言葉は `keystore.properties`(gitignore 済み)、
 鍵は `~/.dopachiru-signing/dopachiru-release.jks`(リポジトリの外)。**なくすと二度と上書き更新
 できない**ので、控えを別の場所に置いておく。機械を替えるときは2つとも持っていく。
 `:app:checkSigningKey` が指紋を見張っていて、違えば release を組む前に止まる

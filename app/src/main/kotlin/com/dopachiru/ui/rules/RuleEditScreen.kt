@@ -710,7 +710,7 @@ private fun TargetStep(
 
         TargetMode.ALL -> {
             Text(
-                "電話・ホーム・設定・キーボード・ドパチル自身は、除外に入れなくても止まりません。" +
+                "電話・ホーム・設定・キーボード・FlexHarness自身は、除外に入れなくても止まりません。" +
                     "ホーム画面に出ないシステムのアプリ(Google Play 開発者サービスや" +
                     "アンインストールの確認など)も対象外です。",
                 style = MaterialTheme.typography.bodySmall,

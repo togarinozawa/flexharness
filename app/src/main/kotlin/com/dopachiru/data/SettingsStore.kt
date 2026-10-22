@@ -104,7 +104,7 @@ class SettingsStore(private val context: Context) {
     val growthName: Flow<String> = context.dataStore.data.map { it[Keys.growthName] ?: "めばえ" }
 
     /**
-     * ドパチル自身の設定を開こうとしたときに引き止めるか。
+     * FlexHarness自身の設定を開こうとしたときに引き止めるか。
      * 引き止めるだけで、進むことは必ずできる。
      */
     val selfDefense: Flow<Boolean> = context.dataStore.data.map { it[Keys.selfDefense] ?: false }
@@ -114,7 +114,7 @@ class SettingsStore(private val context: Context) {
     }
 
     /**
-     * ドパチル自身の消費を抑えるモード。
+     * FlexHarness自身の消費を抑えるモード。
      * 判定を見に来る間隔とカレンダーの読み直しが伸びる。
      * ブロックが最大で数十秒遅れることがある代わりに、常駐の消費が減る。
      */

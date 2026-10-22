@@ -94,7 +94,7 @@ object DesktopUpdater {
         cancelled = false
         _state.value = State.Downloading(build, 0)
         scope.launch {
-            val dest = File(updatesDir(), build.fileName.ifBlank { "dopachiru-update.deb" })
+            val dest = File(updatesDir(), build.fileName.ifBlank { "flexharness-update.deb" })
             val result = withContext(Dispatchers.IO) {
                 Downloader.download(
                     url = build.url,

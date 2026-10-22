@@ -118,7 +118,7 @@ function showNote(message) {
     ].join(';');
     document.body.appendChild(note);
   }
-  note.textContent = message ? 'ドパチル: ' + message : 'ドパチル: 音だけにしています';
+  note.textContent = message ? 'FlexHarness: ' + message : 'FlexHarness: 音だけにしています';
 }
 
 function removeNote() {

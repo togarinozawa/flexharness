@@ -1,5 +1,5 @@
 /**
- * ドパチルの端末間同期(Cloudflare Workers + D1)。
+ * FlexHarnessの端末間同期(Cloudflare Workers + D1)。
  *
  * ## 前提が1つだけあります
  *
@@ -564,13 +564,14 @@ async function getUsage(url, env, auth) {
  * そこを直す作業が増え、**忘れたときに「最新です」と嘘をつく**。
  * `dopachiru-0.24.0.apk` から 0.24.0 を読めば、書き写す場所は無くなる。
  */
-const REPO = 'togarinozawa/doapchill';
+const REPO = 'togarinozawa/flexharness';
 
 /** 版ごとのファイル名の形。ここから版を読む。 */
 const ASSETS = {
-  android: /^dopachiru-(\d+(?:\.\d+)*)\.apk$/,
+  // 0.44.0 から FlexHarness に名前を変えた。前の名前のリリースも読めるよう、両方を受ける
+  android: /^(?:flexharness|dopachiru)-(\d+(?:\.\d+)*)\.apk$/,
   windows: /^dopachiru-windows-(\d+(?:\.\d+)*)\.msi$/,
-  linux: /^dopachiru-linux-(\d+(?:\.\d+)*)\.deb$/,
+  linux: /^(?:flexharness|dopachiru)-linux-(\d+(?:\.\d+)*)\.deb$/,
 };
 
 /**

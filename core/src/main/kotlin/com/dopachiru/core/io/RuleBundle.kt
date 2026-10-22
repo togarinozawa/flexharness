@@ -65,7 +65,7 @@ data class RuleBundle(
         const val VERSION = 1
 
         const val NOTE =
-            "ドパチルのルール。rules を足したり書き換えたりして取り込めます。" +
+            "FlexHarnessのルール。rules を足したり書き換えたりして取り込めます。" +
                 "condition の typeId と actionId、params のキーは catalog を見てください。" +
                 "params の書き漏らしは既定値で埋まります。uid が同じルールは差し替えになります。"
 
@@ -240,12 +240,12 @@ object RuleBundleIo {
 
         if (bundle.format != RuleBundle.FORMAT) {
             return ParseResult.Failed(
-                "ドパチルのルールファイルではないようです(format が " + bundle.format + ")。",
+                "FlexHarnessのルールファイルではないようです(format が " + bundle.format + ")。",
             )
         }
         if (bundle.version > RuleBundle.VERSION) {
             return ParseResult.Failed(
-                "新しい形式です(version ${bundle.version})。ドパチルを更新してください。",
+                "新しい形式です(version ${bundle.version})。FlexHarnessを更新してください。",
             )
         }
         return ParseResult.Ok(bundle)

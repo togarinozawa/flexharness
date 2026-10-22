@@ -17,7 +17,7 @@ import com.dopachiru.runtime.DopaRuntime
  *
  * ## なぜ要るか
  *
- * ドパチルの取り締まりは、そのほとんどがユーザー補助の上に乗っている。これを切られると、
+ * FlexHarnessの取り締まりは、そのほとんどがユーザー補助の上に乗っている。これを切られると、
  * アプリは起動していても**何も止めない**。いちばん危ないのは、切ったこと自体を忘れて
  * 「守られているつもり」で過ごすこと ── 誘惑に負けて切ったのなら、なおさら気づかない。
  * だから外れたら、目に入る強さの通知で知らせる。
@@ -152,7 +152,7 @@ object PermissionGuard {
     ) = NotificationCompat.Builder(context, DopaApplication.CHANNEL_GUARD)
         .setSmallIcon(R.drawable.ic_notification)
         .setContentTitle(
-            "ドパチルの見張りが外れています" +
+            "FlexHarnessの見張りが外れています" +
                 (sinceSec?.let { "(${((nowSec - it) / 60).coerceAtLeast(0)}分前から)" } ?: ""),
         )
         .setContentText(message(accessibilityLost, overlayLost))
@@ -189,7 +189,7 @@ object PermissionGuard {
         )
     }
 
-    /** ドパチルのユーザー補助が有効か。設定画面と同じ見方。 */
+    /** FlexHarnessのユーザー補助が有効か。設定画面と同じ見方。 */
     private fun isAccessibilityEnabled(context: Context): Boolean {
         val expected = "${context.packageName}/${DopaAccessibilityService::class.java.name}"
         val enabled = Settings.Secure.getString(

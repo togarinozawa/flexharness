@@ -11,7 +11,7 @@ import java.security.SecureRandom
 import java.util.concurrent.Executors
 
 /**
- * ブラウザ拡張とドパチル本体をつなぐ、ループバック専用の小さなサーバ。
+ * ブラウザ拡張とFlexHarness本体をつなぐ、ループバック専用の小さなサーバ。
  *
  * ## なぜ本体に聞かせるのか
  *

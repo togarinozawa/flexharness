@@ -37,7 +37,7 @@ class ProtectedApps(context: Context) {
         // ホーム。ここを塞ぐとブロック画面から逃げる先が無くなる
         addAll(resolve(pm, Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)))
 
-        // 設定。ドパチル自身を無効化する道は必ず残す(引き止めはするが塞がない)
+        // 設定。FlexHarness自身を無効化する道は必ず残す(引き止めはするが塞がない)
         addAll(resolve(pm, Intent(Settings.ACTION_SETTINGS)))
         add("com.android.settings")
 

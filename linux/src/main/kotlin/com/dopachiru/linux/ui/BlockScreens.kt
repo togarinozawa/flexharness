@@ -430,7 +430,7 @@ fun LockedScreen(
             if (locked.isDeadline) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "終わったら、ドパチルの「今日」で「終わった」に。残りは今日の集中の時間帯の終わりまでです。",
+                    "終わったら、FlexHarnessの「今日」で「終わった」に。残りは今日の集中の時間帯の終わりまでです。",
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -616,7 +616,7 @@ object DopaRuntime {
 
     /**
      * 何があってもブロックしないアプリか。
-     * 電話・ホーム・設定・入力メソッド・ドパチル自身。ルールより強い。
+     * 電話・ホーム・設定・入力メソッド・FlexHarness自身。ルールより強い。
      */
     fun isProtected(packageName: String): Boolean =
         initialized && packageName in protectedApps
@@ -1396,7 +1396,7 @@ object DopaRuntime {
      * 止まったことと、いつ戻るかを知らせる。
      *
      * 戻る時刻を見せるのが要 ── 「戻る」と分かっていれば、止めたまま忘れることも、
-     * 戻ったのを不具合と思ってドパチルごと切ることも減る。
+     * 戻ったのを不具合と思ってFlexHarnessごと切ることも減る。
      */
     private fun notifyPaused(ruleName: String, minutes: Int) {
         val until = java.time.LocalTime.now().plusMinutes(minutes.toLong())

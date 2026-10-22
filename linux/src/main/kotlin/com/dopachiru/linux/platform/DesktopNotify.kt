@@ -13,7 +13,7 @@ object DesktopNotify {
     fun send(title: String, body: String) {
         runCatching {
             val p = ProcessBuilder(
-                "notify-send", "--app-name=ドパチル", "--urgency=critical", title, body,
+                "notify-send", "--app-name=FlexHarness", "--urgency=critical", title, body,
             ).redirectErrorStream(true).start()
             p.waitFor(3, TimeUnit.SECONDS)
         }

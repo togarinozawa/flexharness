@@ -520,7 +520,7 @@ internal fun GuardSection(viewModel: SettingsViewModel) {
                     viewModel::setSelfDefense,
                 )
                 Text(
-                    "設定アプリでドパチルのページを開いたとき、連続日数を見せて10秒だけ引き止めます。" +
+                    "設定アプリでFlexHarnessのページを開いたとき、連続日数を見せて10秒だけ引き止めます。" +
                         "無効化そのものは必ずできます。自分で入れたアプリを自分で止められなくなるのは、" +
                         "抑止ではなく事故なので。",
                     style = MaterialTheme.typography.bodySmall,
@@ -797,7 +797,7 @@ private fun AboutSection(onOpenDevTools: () -> Unit) {
         // 文字が小さいので、当たり判定は padding で広げてある。
         // 隠す意図はないのに「押せなくて見つからない」のはただの不便。
         Text(
-            "ドパチル " + versionLabel(context) + "(長押しで開発ツール)",
+            "FlexHarness " + versionLabel(context) + "(長押しで開発ツール)",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
@@ -1480,7 +1480,7 @@ private fun FocusCard() {
 
             Text("ホーム画面に置くボタン", style = MaterialTheme.typography.bodyLarge)
             Text(
-                "ドパチルを開いてから始めるのでは遅い、という場面のためのものです。" +
+                "FlexHarnessを開いてから始めるのでは遅い、という場面のためのものです。" +
                     "置き場所が近いことが、そのまま使う回数になります。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

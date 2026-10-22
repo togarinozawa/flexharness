@@ -14,7 +14,7 @@ plugins {
  * Windows 版(`:desktop`)とは別の数え方。Windows 版から写して始めたが、
  * 版まで引き継ぐと「1.29 から 1.30 で何が変わったか」が2つの OS で混ざる。
  */
-val linuxVersion = "1.2.0"
+val linuxVersion = "1.3.0"
 
 kotlin {
     jvmToolchain(21)
@@ -48,7 +48,7 @@ tasks.withType<Test>().configureEach {
 /**
  * 配る .deb を `dist/` に版つきで置く。`gradlew :linux:distDeb`
  *
- * jpackage の生の名前(`dopachiru_1.0.0_amd64.deb`)では `/version` が版を読めない。
+ * jpackage の生の名前(`flexharness_1.3.0_amd64.deb`)では `/version` が版を読めない。
  * :app:dist と同じく、配る名前はここで決める。
  */
 tasks.register<Copy>("distDeb") {
@@ -59,12 +59,12 @@ tasks.register<Copy>("distDeb") {
     include("*.deb")
     into(rootProject.layout.projectDirectory.dir("dist"))
     // 版は設定時に読んでおく(構成キャッシュが script の参照を直列化できないため)
-    val name = "dopachiru-linux-$linuxVersion.deb"
+    val name = "flexharness-linux-$linuxVersion.deb"
     rename { name }
 }
 
 /**
- * インストール不要の持ち運び版。JRE ごと固めるので、展開して `dopachiru/bin/dopachiru` で動く。
+ * インストール不要の持ち運び版。JRE ごと固めるので、展開して `flexharness/bin/flexharness` で動く。
  * `gradlew :linux:packagePortable`
  */
 tasks.register<Tar>("packagePortable") {
@@ -73,7 +73,7 @@ tasks.register<Tar>("packagePortable") {
     dependsOn("createDistributable")
     from(layout.buildDirectory.dir("compose/binaries/main/app"))
     compression = Compression.GZIP
-    archiveFileName.set("dopachiru-linux-$linuxVersion.tar.gz")
+    archiveFileName.set("flexharness-linux-$linuxVersion.tar.gz")
     destinationDirectory.set(rootProject.layout.projectDirectory.dir("dist"))
 }
 
@@ -111,14 +111,17 @@ compose.desktop {
             // (UNIX ソケットの相手の確かめと、D-Bus の EXTERNAL 認証で使う uid)。
             // jlink で削られると、**配布版でだけ** 拡張や KWin が繋がらなくなる
             modules("jdk.httpserver", "jdk.net", "jdk.security.auth")
-            packageName = "dopachiru"
+            // 名前を FlexHarness に変えたときに、パッケージの名前も変えた(1.3.0)。
+            // 1.2.0 までの dopachiru は別のパッケージとして残るので、入れ替えるときに消してもらう。
+            // データの置き場所(~/.local/share/dopachiru)は変えていない ── 変えるとルールも記録も消えて見える
+            packageName = "flexharness"
             packageVersion = linuxVersion
-            description = "Dopachiru - self-imposed app usage limits"
-            vendor = "dopachiru"
+            description = "FlexHarness - a flexible harness for yourself"
+            vendor = "flexharness"
 
             linux {
-                // 入れ先は /opt/dopachiru。起動は bin/dopachiru
-                packageName = "dopachiru"
+                // 入れ先は /opt/flexharness。起動は bin/flexharness
+                packageName = "flexharness"
                 menuGroup = "Utility"
                 appCategory = "utils"
                 shortcut = true

@@ -75,7 +75,7 @@ fun main(args: Array<String>) = application {
 
     Tray(
         icon = remember(paused) { TrayIcon(paused) },
-        tooltip = if (paused) "ドパチル(一時停止中)" else "ドパチル",
+        tooltip = if (paused) "FlexHarness(一時停止中)" else "FlexHarness",
         onAction = { windowOpen = true },
         menu = {
             Item("開く", onClick = { windowOpen = true })
@@ -104,7 +104,7 @@ fun main(args: Array<String>) = application {
     if (windowOpen) {
         Window(
             onCloseRequest = { if (trayOk) windowOpen = false else windowState.isMinimized = true },
-            title = "ドパチル",
+            title = "FlexHarness",
             state = windowState,
         ) {
             DesktopApp()
@@ -194,7 +194,7 @@ fun main(args: Array<String>) = application {
         // 「出したのに見えない」になる
         is Presentation.Notes -> Window(
             onCloseRequest = {},
-            title = "ドパチル",
+            title = "FlexHarness",
             undecorated = true,
             transparent = true,
             alwaysOnTop = true,
@@ -219,7 +219,7 @@ fun main(args: Array<String>) = application {
         // 何も遮らないので、小さな枠で隅に置くだけ。操作は下に届く
         is Presentation.Timer -> Window(
             onCloseRequest = {},
-            title = "ドパチル",
+            title = "FlexHarness",
             undecorated = true,
             transparent = true,
             alwaysOnTop = true,
@@ -245,7 +245,7 @@ fun main(args: Array<String>) = application {
 
         is Presentation.Warn -> Window(
             onCloseRequest = {},
-            title = "ドパチル",
+            title = "FlexHarness",
             undecorated = true,
             transparent = true,
             alwaysOnTop = true,
@@ -271,7 +271,7 @@ fun main(args: Array<String>) = application {
         // 書いた目的を上端に小さく出し続ける。操作は下に届く
         is Presentation.Intention -> Window(
             onCloseRequest = {},
-            title = "ドパチル",
+            title = "FlexHarness",
             undecorated = true,
             transparent = true,
             alwaysOnTop = true,
@@ -310,7 +310,7 @@ private fun androidx.compose.ui.window.ApplicationScope.OverlayWindow(
 ) {
     Window(
         onCloseRequest = {},
-        title = "ドパチル",
+        title = "FlexHarness",
         undecorated = true,
         alwaysOnTop = true,
         resizable = false,

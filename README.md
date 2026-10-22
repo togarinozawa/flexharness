@@ -1,4 +1,4 @@
-# ドパチル ver.1
+# FlexHarness ver.1
 
 ドーパミン依存的なスマホ使用習慣からの立ち直りを支援する、個人用のアプリ使用制限アプリ。
 
@@ -61,18 +61,18 @@ USB デバッグを有効にした端末を繋いで、次を実行するとイ�
 
 ```bash
 ./gradlew :app:dist
-adb install -r dist/dopachiru-0.9.0.apk
+adb install -r dist/flexharness-0.44.0.apk
 ```
 
 ### 配布用 APK
 
-**[Releases](https://github.com/togarinozawa/doapchill/releases) から落とせます。**
+**[Releases](https://github.com/togarinozawa/flexharness/releases) から落とせます。**
 
 > `dist/` は [.gitignore](.gitignore) に入っているので、**clone しても APK は付いてきません。**
 > リポジトリの中を探しても無いのが正しい状態です。配布物は Releases 側にあります。
 
 ```bash
-./gradlew :app:dist        # dist/dopachiru-<版>.apk
+./gradlew :app:dist        # dist/flexharness-<版>.apk
 ./gradlew :desktop:packageSetup      # dist/dopachiru-windows-<版>-setup.zip
 ./gradlew :desktop:packagePortable   # dist/dopachiru-windows-<版>.zip
 ```
@@ -104,11 +104,11 @@ adb shell appops set com.dopachiru ACCESS_RESTRICTED_SETTINGS allow
 
 端末だけで済ませる場合:
 
-1. 設定 → ユーザー補助 → ドパチル のスイッチを押して**わざとブロックされる**(これをやらないと次のメニューが出ない)
-2. 設定 → アプリ → ドパチル → 右上「⋮」→「制限された設定を許可」
+1. 設定 → ユーザー補助 → FlexHarness のスイッチを押して**わざとブロックされる**(これをやらないと次のメニューが出ない)
+2. 設定 → アプリ → FlexHarness → 右上「⋮」→「制限された設定を許可」
 3. 画面ロックで認証
 
-そのうえで、設定 → ユーザー補助 → ドパチル を ON にします。
+そのうえで、設定 → ユーザー補助 → FlexHarness を ON にします。
 
 ### 入らないとき
 
@@ -133,7 +133,7 @@ adb shell appops set com.dopachiru ACCESS_RESTRICTED_SETTINGS allow
 **理由を確実に知りたいなら adb が一番早い**です。失敗の種類がそのまま出ます。
 
 ```bash
-adb install -r dist/dopachiru-0.9.0.apk
+adb install -r dist/flexharness-0.44.0.apk
 ```
 
 `INSTALL_FAILED_VERIFICATION_FAILURE` なら Play プロテクト、
@@ -141,7 +141,7 @@ adb install -r dist/dopachiru-0.9.0.apk
 
 ### 入っている版を確かめる
 
-**設定タブの一番下**に出ています(`ドパチル 0.9.0 (16)`)。
+**設定タブの一番下**に出ています(`FlexHarness 0.9.0 (16)`)。
 括弧の中は versionCode で、表向きの版が同じでも作り直したものかを見分けられます。
 
 gradle の値を焼き込むのではなく**入っているパッケージから読んでいる**ので、
@@ -290,7 +290,7 @@ gradle の値を焼き込むのではなく**入っているパッケージか�
   または押してから長さを選ぶ、のどちらかを型ごとに選べます
 - **「長さを選ぶ」** — 押すと5分刻みの格子(5〜150分、5列×6行)が出て、その場で長さを
   決められます。ボタン1つで足ります。型を指していれば、その範囲で止まります
-- **1タップボタン** — 長さを決め打ちしたもの。ドパチルを開いてから始めるのでは遅い
+- **1タップボタン** — 長さを決め打ちしたもの。FlexHarnessを開いてから始めるのでは遅い
   (そのときにはもうスマホを握っている)ので、選ぶ手間すら惜しいとき用
 - **アプリのアイコンを長押し** — 「長さを選ぶ」と 15分/30分 の候補が出ます
 - **ダッシュボードのカード** — 長さを選んで始める
@@ -929,11 +929,11 @@ Windows には Android のような統一された止め方がないので、設
 | プロセスを一時停止 | `NtSuspendProcess` で対象を凍らせる。最も強いが、保存していない編集内容を壊すことがある |
 
 一時停止は、止めた pid を必ず控えて終了フックで戻します。
-**ドパチルが落ちても、巻き添えでプロセスが固まったままにはなりません。**
+**FlexHarnessが落ちても、巻き添えでプロセスが固まったままにはなりません。**
 
-`explorer.exe`・`taskmgr.exe`・ログオン関係・ドパチル自身は、ルールより強く常に除外します
+`explorer.exe`・`taskmgr.exe`・ログオン関係・FlexHarness自身は、ルールより強く常に除外します
 ([`ProtectedProcesses`](desktop/src/main/kotlin/com/dopachiru/desktop/platform/ProtectedProcesses.kt))。
-タスクマネージャを入れてあるのは、ドパチル自身を必ず止められるようにしておくためです。
+タスクマネージャを入れてあるのは、FlexHarness自身を必ず止められるようにしておくためです。
 
 ---
 
@@ -1305,7 +1305,7 @@ GoalKeeper(IMWUT 2019)で、**警告ダイアログの92%は「使い続ける�
 
 - 閉まるあいだは**押し切る手段がありません**。あるのは残り時間だけ。
 - 上限は **12時間**。桁を間違えて一日詰むことがないようにしてあります。
-- 電話・ホーム・設定・キーボード・ドパチル自身は、罰の最中も必ず使えます
+- 電話・ホーム・設定・キーボード・FlexHarness自身は、罰の最中も必ず使えます
   (`ProtectedApps` / `ProtectedProcesses`。ここは設定から外せません)。
 - 範囲は**罰を科した時点で固定**されます。あとからルールを書き換えても、
   すでに科した罰の重さは変わりません。
@@ -1435,9 +1435,9 @@ Google Calendar API も OAuth も Google Cloud のプロジェクトも使って
 
 使用時間は端末の使用状況から直近1週間ぶんを読みます
 ([`AppUsageRanking`](app/src/main/kotlin/com/dopachiru/data/AppUsageRanking.kt))。
-**ドパチルを入れる前の実績も見える**ので、最初にルールを作るときに効きます。
+**FlexHarnessを入れる前の実績も見える**ので、最初にルールを作るときに効きます。
 許可(設定 → 特別なアプリアクセス → 使用状況へのアクセス)が無いときは、
-ドパチル自身の記録(48時間ぶん)に落ちます。どちらも無ければ名前順に落ちるだけです。
+FlexHarness自身の記録(48時間ぶん)に落ちます。どちらも無ければ名前順に落ちるだけです。
 
 ### 対象は「選んだものを止める」と「選んだもの以外を止める」の両方
 
@@ -1451,7 +1451,7 @@ Google Calendar API も OAuth も Google Cloud のプロジェクトも使って
 
 ### 何があっても止めないアプリ
 
-電話・ホーム・設定・キーボード・ドパチル自身は、どのルールからも制限されません
+電話・ホーム・設定・キーボード・FlexHarness自身は、どのルールからも制限されません
 ([`ProtectedApps`](app/src/main/kotlin/com/dopachiru/data/ProtectedApps.kt))。
 
 **これはルールより強く、設定画面からも外せません。** 許可リスト型を入れるまでは、
@@ -1489,7 +1489,7 @@ Google Calendar API も OAuth も Google Cloud のプロジェクトも使って
 
 ### 自分から守る(任意)
 
-設定アプリでドパチルのページを開いたとき、連続日数を見せて10秒だけ引き止めます。
+設定アプリでFlexHarnessのページを開いたとき、連続日数を見せて10秒だけ引き止めます。
 既定はオフ。設定タブから有効にできます。
 
 **無効化そのものは必ずできるようにしてあります。** 自分で入れたアプリを

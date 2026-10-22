@@ -33,13 +33,13 @@ android {
          */
         minSdk = 29
         targetSdk = 36
-        versionCode = 51
-        versionName = "0.43.0"
+        versionCode = 52
+        versionName = "0.44.0"
     }
 
     signingConfigs {
         /**
-         * 配る APK の署名。**ドパチル専用の鍵**で、在り処は keystore.properties に書く
+         * 配る APK の署名。**FlexHarness専用の鍵**で、在り処は keystore.properties に書く
          * (鍵もこのファイルも gitignore 済み。リポジトリは公開なので、絶対に入れない)。
          *
          * 0.41.0 までは「ビルドした機械の debug 鍵」だった。機械を替えたら鍵が黙って
@@ -114,7 +114,7 @@ tasks.register<Copy>("dist") {
     into(rootProject.layout.projectDirectory.dir("dist"))
     // 版は設定時に読んでおく。実行時に android {} を触ると
     // 構成キャッシュが Project を掴もうとして落ちる
-    val name = "dopachiru-" + android.defaultConfig.versionName + ".apk"
+    val name = "flexharness-" + android.defaultConfig.versionName + ".apk"
     rename { name }
 }
 
@@ -125,7 +125,7 @@ tasks.register<Copy>("dist") {
  * アンインストールしてルールも記録も失うしかなくなる。0.41.0 で一度それが起きた。
  *
  * 指紋は公開してよい値(証明書の要約で、鍵そのものではない)。
- * 0.41.0 までは debug 鍵の 827020ec…、0.42.0 からドパチル専用の鍵。
+ * 0.41.0 までは debug 鍵の 827020ec…、0.42.0 からFlexHarness専用の鍵。
  */
 val expectedSigningSha256 = "d4a015b4a3fb8d39541ad54efdd31ebb3b0376f511a44ccc42c7051859e9ea73"
 

@@ -1,4 +1,4 @@
-# ドパチルを実機に入れる。
+# FlexHarnessを実機に入れる。
 #
 #   .\install.ps1            … dist の APK を入れる
 #   .\install.ps1 -Build     … ビルドしてから入れる
@@ -44,7 +44,7 @@ Write-Host "`n[3/3] 制限された設定の解除" -ForegroundColor Cyan
 Write-Host "  ACCESS_RESTRICTED_SETTINGS = allow"
 
 Write-Host "`n完了。端末側で次をやってください:" -ForegroundColor Green
-Write-Host "  1. 設定 → ユーザー補助 → ドパチル を ON"
+Write-Host "  1. 設定 → ユーザー補助 → FlexHarness を ON"
 Write-Host "  2. アプリを開いて、通知の許可を出す"
 Write-Host "  3. 設定タブ → 電池の最適化から除外"
 Write-Host "  4. 設定タブ → カレンダーの読み取りを許可(カレンダー連携を使う場合)"

@@ -27,7 +27,7 @@ enum class BlockStrength(val displayName: String, val description: String) {
  * ## 一時停止の後始末について
  * 止めたまま終了すると、そのプロセスは誰にも再開されず固まったままになる。
  * 止めた pid は必ず控えて、[resumeAll] を終了フックから呼ぶ。
- * ドパチルが落ちてもプロセスが巻き添えにならないための最低限の約束。
+ * FlexHarnessが落ちてもプロセスが巻き添えにならないための最低限の約束。
  *
  * それでも SIGKILL で落とされたら控えは消える。そのときは `kill -CONT <pid>` で戻せる。
  */

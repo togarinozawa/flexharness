@@ -613,7 +613,7 @@ fun SessionTimerScreen(minutes: Int, todayMinutes: Int?) = DopaBlockTheme {
  *
  * ブロック画面と違い、押し切る手段が無い。あるのは「あと何分か」だけ。
  * 自分で選んだ罰なので、時間が過ぎるのを待つ以外に道は無い ──
- * けれど**必ず過ぎる**。ホームには戻れるし、ドパチルの設定も開ける。
+ * けれど**必ず過ぎる**。ホームには戻れるし、FlexHarnessの設定も開ける。
  * 残り時間を隠さないのは、見えない拘束がいちばん人を追い詰めるため。
  */
 @Composable
@@ -633,7 +633,7 @@ fun LockoutScreen(
     /** 集中にのぞきを入れてあるときだけ渡す。罰では渡さない。 */
     peek: PeekControls? = null,
     /**
-     * 締切の集中のときだけ渡す。ドパチルを開く(「終わった」・一時停止はそこで)。
+     * 締切の集中のときだけ渡す。FlexHarnessを開く(「終わった」・一時停止はそこで)。
      *
      * 締切の集中は罰ではないので「破った罰」と出してはいけない。かといって
      * 自分で始めた集中の「切り上げる」も無い ── 終わり方は「終わった」だけ。
@@ -745,7 +745,7 @@ fun LockoutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text("終わった・一時停止(ドパチルを開く)", modifier = Modifier.padding(vertical = 6.dp))
+                    Text("終わった・一時停止(FlexHarnessを開く)", modifier = Modifier.padding(vertical = 6.dp))
                 }
                 Spacer(Modifier.height(10.dp))
                 Text(
@@ -1124,7 +1124,7 @@ fun DeclareScreen(
 }
 
 /**
- * ドパチル自身の設定を触ろうとしたときに出す引き止め。
+ * FlexHarness自身の設定を触ろうとしたときに出す引き止め。
  *
  * ここは意図的に「止められない」設計にしていない。カウントダウンのあと必ず進める。
  * 自分で入れたアプリを自分で無効化できなくなるのは、抑止ではなく事故なので。
@@ -1159,7 +1159,7 @@ fun SelfDefenseScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "ドパチルを止めようとしている",
+                "FlexHarnessを止めようとしている",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,

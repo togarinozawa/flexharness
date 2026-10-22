@@ -1,4 +1,4 @@
--- ドパチル同期のテーブル(D1)。
+-- FlexHarness同期のテーブル(D1)。
 --
 -- Express + better-sqlite3 版から、ほぼそのまま移してあります。
 -- D1 の実体は SQLite なので、型も ON CONFLICT の書き方も同じものが通ります。
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS dopachiru_meta (
 
 -- 同期する実体を1つのテーブルにまとめて置く。
 -- payload は中身を見ない JSON。ルールの条件が増えても、同期する種類が増えても、
--- ここのスキーマは変わらない(ドパチル本体が条件を JSON 1本で持っているのと同じ考え)。
+-- ここのスキーマは変わらない(FlexHarness本体が条件を JSON 1本で持っているのと同じ考え)。
 CREATE TABLE IF NOT EXISTS dopachiru_entities (
   user_id    INTEGER NOT NULL DEFAULT 1,
   kind       TEXT    NOT NULL,              -- 'tags' | 'apps' | 'devices' | 'reservations' | 'commands' | 'ruleStates' | 'ruleCatalogs'

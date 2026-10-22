@@ -191,7 +191,7 @@ data class BlockLogEntity(
  * 終わりの時刻を自分で持たせているのが肝。「終わった」の連絡が来なくても
  * 時刻が過ぎれば勝手に解ける。送り主のアプリが落ちても閉じ込められない。
  *
- * [goalId] と [kind] はいまのドパチルは見ていない。将来「数学の予定のときだけ
+ * [goalId] と [kind] はいまのFlexHarnessは見ていない。将来「数学の予定のときだけ
  * 許す」ような使い方をするときに要るので、受け取ったものは捨てずに置いておく。
  */
 @Entity(tableName = "study_windows", indices = [Index("startEpochSec")])

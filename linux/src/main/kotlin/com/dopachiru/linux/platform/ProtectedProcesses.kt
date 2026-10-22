@@ -7,7 +7,7 @@ package com.dopachiru.linux.platform
  * 「必要なアプリ以外ぜんぶ」が書ける以上、選ばなくても巻き込めてしまうので、
  * 巻き込まれると詰むものはここで弾く。
  *
- * システムモニタを入れてあるのは意図的。ドパチル自身を必ず止められるようにしておく。
+ * システムモニタを入れてあるのは意図的。FlexHarness自身を必ず止められるようにしておく。
  * 自分で入れたものを自分で止められなくなるのは、抑止ではなく事故なので。
  *
  * 名前は [AppIds] がそろえた形(.desktop の名前・小文字)。同じものが
@@ -39,7 +39,7 @@ object ProtectedProcesses {
         "kwalletd6",
         "org.kde.kwalletd6",
 
-        // 逃げ道。ドパチルを止める手段は必ず残す
+        // 逃げ道。FlexHarnessを止める手段は必ず残す
         "systemsettings",
         "org.kde.systemsettings",
         "kcmshell6",
@@ -47,8 +47,11 @@ object ProtectedProcesses {
         "plasma-systemmonitor",
         "org.kde.ksysguard",
 
-        // ドパチル自身。名前より先に pid で弾いてあるので、ここは念のため。
+        // FlexHarness自身。名前より先に pid で弾いてあるので、ここは念のため。
         // `java` は入れない ── Java で動くゲーム(Minecraft のランチャーなど)まで素通しになる
+        "flexharness",
+        "flexharness-flexharness",
+        // 名前を変える前(1.2.0 まで)の識別子
         "dopachiru",
         "dopachiru-dopachiru",
     )

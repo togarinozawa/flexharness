@@ -1064,7 +1064,7 @@ object DesktopRuntime {
             val minutes = ((System.currentTimeMillis() / 1000 - device.guardLostAtSec) / 60).coerceAtLeast(0)
             DesktopNotify.send(
                 "「${device.displayName}」の見張りが外れています",
-                "${minutes}分前から、ドパチルが何も止めていません。",
+                "${minutes}分前から、FlexHarnessが何も止めていません。",
             )
         }
     }

@@ -3,7 +3,7 @@ package com.dopachiru.linux.platform
 import java.io.File
 
 /**
- * ログインしたら、ドパチルも一緒に立ち上がるようにする。
+ * ログインしたら、FlexHarnessも一緒に立ち上がるようにする。
  *
  * ## なぜ ~/.config/autostart なのか
  * XDG の自動起動の置き場で、KDE の「システム設定 → 自動起動」にそのまま並ぶ。
@@ -59,8 +59,8 @@ object AutoStart {
                 """
                 [Desktop Entry]
                 Type=Application
-                Name=Dopachiru
-                Comment=ドパチル(アプリの使いすぎを止める)
+                Name=FlexHarness
+                Comment=FlexHarness(アプリの使いすぎを止める)
                 Exec="$path" $STARTUP_FLAG
                 X-GNOME-Autostart-enabled=true
                 """.trimIndent() + "\n",

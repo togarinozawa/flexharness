@@ -334,7 +334,7 @@ private fun DeadlineEditor(initial: DeadlineTask?, onDismiss: () -> Unit) {
                 Section("集中中も開けるアプリ")
                 Text(
                     if (allowPackages.isEmpty()) {
-                        "まだありません。電話・ホーム・設定・キーボード・ドパチルは選ばなくても開きます。"
+                        "まだありません。電話・ホーム・設定・キーボード・FlexHarnessは選ばなくても開きます。"
                     } else {
                         allowPackages.joinToString("、") { InstalledApps.labelOf(context, it) }
                     },

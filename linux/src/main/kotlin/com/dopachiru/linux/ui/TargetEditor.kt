@@ -106,7 +106,7 @@ fun TargetEditor(target: Target, onChange: (Target) -> Unit) {
 
         TargetMode.ALL -> {
             Text(
-                "エクスプローラ・タスクマネージャ・ドパチル自身は、残す指定に入れなくても止まりません。",
+                "エクスプローラ・タスクマネージャ・FlexHarness自身は、残す指定に入れなくても止まりません。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

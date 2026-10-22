@@ -400,13 +400,13 @@ private fun ImportPreviewDialog(plan: ImportPlan, onConfirm: () -> Unit, onDismi
 
 private fun defaultFileName(): String {
     val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"))
-    return "dopachiru-rules-$stamp.json"
+    return "flexharness-rules-$stamp.json"
 }
 
 private fun historyFileName(format: ExportFormat): String {
     val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"))
     val kind = if (format == ExportFormat.ADVICE) "advice" else "data"
-    return "dopachiru-history-$kind-$stamp.${format.extension}"
+    return "flexharness-history-$kind-$stamp.${format.extension}"
 }
 
 private data class HistoryChoice(val format: ExportFormat, val days: Int)

@@ -14,7 +14,7 @@ document.getElementById('pair').addEventListener('click', async () => {
   }
   const why = {
     not_pairing: '本体は動いていますが、まだ「つなぐ」が押されていません。本体の設定で押してから2分以内にもう一度。',
-    not_found: 'ドパチル本体が見つかりません。起動しているか確認してください。',
+    not_found: 'FlexHarness本体が見つかりません。起動しているか確認してください。',
     unreachable: '本体に届きませんでした。',
   };
   show((res && why[res.error]) || '失敗しました', 'ng');
