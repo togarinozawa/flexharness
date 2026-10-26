@@ -39,4 +39,29 @@ object OneShotLimit {
     /** 作ったルールを今日だけのものにする。 */
     fun forToday(rule: Rule, now: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): Rule =
         rule.copy(expiresAtSec = endOfDay(now, zone))
+
+    /**
+     * [days] 日ぶんの期限。1 なら [endOfDay] と同じ。
+     *
+     * 「まず3日だけ試す」のためにある。今日だけと同じく、区切りは翌朝4時。
+     */
+    fun endAfterDays(now: LocalDateTime, days: Int, zone: ZoneId = ZoneId.systemDefault()): Long {
+        val first = endOfDay(now, zone)
+        return first + (days.coerceAtLeast(1) - 1) * 24L * 60 * 60
+    }
+
+    /** 期限まで、あと何日(今日を1と数える)。期限なし・期限切れは 0。 */
+    fun daysLeft(expiresAtSec: Long, now: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): Int {
+        if (expiresAtSec <= 0L) return 0
+        val nowSec = now.atZone(zone).toEpochSecond()
+        if (expiresAtSec <= nowSec) return 0
+        val first = endOfDay(now, zone)
+        return (1 + (expiresAtSec - first + DAY_SEC - 1) / DAY_SEC).toInt().coerceAtLeast(1)
+    }
+
+    /** 今日いっぱいで消えるか。「今日だけの枠」に並べるものを選ぶため。 */
+    fun endsToday(rule: Rule, now: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): Boolean =
+        rule.isTemporary && rule.expiresAtSec <= endOfDay(now, zone)
+
+    private const val DAY_SEC = 24L * 60 * 60
 }

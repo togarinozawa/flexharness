@@ -1,10 +1,21 @@
+<!-- 通知の白抜き。アプリのアイコン(ic_dopa)と同じ形を、背景なしの1色で。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
+    android:viewportWidth="108"
+    android:viewportHeight="108"
     android:tint="#FFFFFF">
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,2a10,10 0,1 0,0.1 0zM12,6a6,6 0,1 1,-0.1 0z" />
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:pathData="M30,18v72M78,18v72" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="9"
+        android:pathData="M30,54h48" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
+        android:pathData="M47,40h14a7,7 0,0 1,7,7v14a7,7 0,0 1,-7,7h-14a7,7 0,0 1,-7,-7v-14a7,7 0,0 1,7,-7z" />
 </vector>

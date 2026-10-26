@@ -29,6 +29,11 @@
   `visibleWhen` で他の欄の値に応じて畳める
 - `available = false` にすると**凍結**(既存ルールは読めるが、新規に選べない)
 
+**雛形(`RulePresets`)は数字を穴(`inputs` = `ParamSpec`)にする。** 対話モード
+(`core/wizard/`、Android の「質問に答えて作る」)が穴をそのまま聞く。新しい雛形は
+`Problem`(困りごと)のどれかに載せる ── 載せ忘れと、聞いたのに効いていない穴は
+`RuleWizardTest` が見つける。
+
 判定の要は `RuleEngine.decide` ── 成立した組のうち `severity` がいちばん高い
 措置を1つだけ採る。重ねられるのは `stackable` な覚え書きだけ。
 

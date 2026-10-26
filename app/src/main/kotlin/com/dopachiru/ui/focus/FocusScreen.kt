@@ -49,6 +49,7 @@ import kotlinx.coroutines.delay
 fun FocusScreen(
     onOpenSettings: () -> Unit,
     onCreateTodayRule: () -> Unit,
+    onCreateTodayByWizard: () -> Unit,
     onEditRule: (Long) -> Unit,
 ) {
     var tick by remember { mutableIntStateOf(0) }
@@ -72,7 +73,13 @@ fun FocusScreen(
         // 自分で始めなくても始まる集中。始める気が起きない晩のためのものなので、上のほうに置く
         item { DeadlineCard() }
 
-        item { TodayRulesCard(onCreateFromScratch = onCreateTodayRule, onEdit = onEditRule) }
+        item {
+            TodayRulesCard(
+                onCreateFromScratch = onCreateTodayRule,
+                onCreateByWizard = onCreateTodayByWizard,
+                onEdit = onEditRule,
+            )
+        }
 
         item { ScheduleCard(schedules, onOpenSettings) }
 

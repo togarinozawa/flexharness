@@ -44,6 +44,7 @@ import com.dopachiru.core.action.ActionRegistry
 import com.dopachiru.core.gate.ChangeKind
 import com.dopachiru.core.model.ConditionTree
 import com.dopachiru.core.model.DeviceScope
+import com.dopachiru.core.model.OneShotLimit
 import com.dopachiru.core.model.Rule
 import com.dopachiru.data.PendingChange
 import com.dopachiru.runtime.DopaRuntime
@@ -84,6 +85,17 @@ class RuleListViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { DopaRuntime.changes.request(ChangeKind.ENABLE, rule, emptyList()) }
     }
 
+    /**
+     * 期限つき(お試し・今日だけ)のルールを、ずっと残す。
+     *
+     * 期限を外すのは縛りが長く続く方向なので、関門は通さず即時。
+     */
+    fun keep(rule: Rule) {
+        viewModelScope.launch {
+            DopaRuntime.changes.request(ChangeKind.UPDATE, rule.copy(expiresAtSec = 0L), emptyList())
+        }
+    }
+
     /** 一時停止をやめて、すぐ効かせる。縛る方向なので即時。 */
     fun resume(rule: Rule) {
         viewModelScope.launch { DopaRuntime.resumeRule(rule.id) }
@@ -111,17 +123,12 @@ class RuleListViewModel(app: Application) : AndroidViewModel(app) {
         .map { list -> list.associate { it.deviceId to it.displayName } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    /** 雛形から作る。新規作成なのでゲートは通さず即時反映。 */
-    fun create(rule: Rule) {
-        viewModelScope.launch {
-            DopaRuntime.changes.request(ChangeKind.CREATE, rule, emptyList())
-        }
-    }
 }
 
 @Composable
 fun RuleListScreen(
     onCreate: () -> Unit,
+    onCreateByWizard: () -> Unit,
     onEdit: (Long) -> Unit,
     onOpenTags: () -> Unit = {},
     onOpenChanges: () -> Unit = {},
@@ -132,7 +139,6 @@ fun RuleListScreen(
     val pendingByRule by viewModel.pendingByRule.collectAsState()
     val context = LocalContext.current
 
-    var pickingPreset by remember { mutableStateOf(false) }
     var stopping by remember { mutableStateOf<Rule?>(null) }
 
     // 一時停止の残りを出すための時計。止まっているあいだの表示が古くならないように
@@ -167,12 +173,12 @@ fun RuleListScreen(
                 Text("まだルールがありません", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "雛形から始めるのが速いです。細部はあとから直せます。",
+                    "困っていることを選ぶと、合う縛り方を出します。細部はあとから直せます。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(20.dp))
-                Button(onClick = { pickingPreset = true }) { Text("雛形から作る") }
+                Button(onClick = onCreateByWizard) { Text("質問に答えて作る") }
                 RuleTransferControls()
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onCreate) { Text("ゼロから組む") }
@@ -185,11 +191,12 @@ fun RuleListScreen(
             ) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // 下の＋は質問に答えて作る入口。部品から組みたいときはここ
                         OutlinedButton(
-                            onClick = { pickingPreset = true },
+                            onClick = onCreate,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("雛形から足す")
+                            Text("ゼロから組む")
                         }
                         // タグはタブをやめてここに置いた。ルールを書くときにしか
                         // 触らないものに、下タブを1つ使う必要はない
@@ -249,6 +256,9 @@ fun RuleListScreen(
                                     onOpenChanges = onOpenChanges,
                                     onCancel = { pending?.let { viewModel.cancelRequest(it.entity.id) } },
                                 )
+                                if (rule.isTemporary) {
+                                    ExpiryStatus(rule = rule, onKeep = { viewModel.keep(rule) })
+                                }
                                 TextButton(onClick = { viewModel.duplicate(rule) }) { Text("複製") }
                             }
                             Switch(
@@ -270,7 +280,7 @@ fun RuleListScreen(
         }
 
         FloatingActionButton(
-            onClick = onCreate,
+            onClick = onCreateByWizard,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp),
@@ -279,8 +289,21 @@ fun RuleListScreen(
         }
     }
 
-    if (pickingPreset) {
-        PresetFlow(onBuilt = viewModel::create, onDismiss = { pickingPreset = false })
+}
+
+/**
+ * 期限つきのルールの残り。お試しで作ったものは、黙って消える前に「ずっとにする」を押せるように。
+ */
+@Composable
+private fun ExpiryStatus(rule: Rule, onKeep: () -> Unit) {
+    val left = OneShotLimit.daysLeft(rule.expiresAtSec, java.time.LocalDateTime.now())
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            if (left <= 1) "今日いっぱいで消えます" else "あと${left}日で消えます",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.tertiary,
+        )
+        TextButton(onClick = onKeep) { Text("ずっとにする") }
     }
 }
 

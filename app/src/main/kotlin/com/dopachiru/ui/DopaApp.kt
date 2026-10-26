@@ -36,6 +36,7 @@ import com.dopachiru.ui.focus.FocusScreen
 import com.dopachiru.ui.reservation.ReservationScreen
 import com.dopachiru.ui.rules.RuleEditScreen
 import com.dopachiru.ui.rules.RuleListScreen
+import com.dopachiru.ui.rules.RuleWizardScreen
 import com.dopachiru.ui.settings.SettingsPage
 import com.dopachiru.ui.settings.SettingsPageScreen
 import com.dopachiru.ui.settings.SettingsScreen
@@ -133,6 +134,7 @@ fun DopaApp() {
                         navController.navigate("settings/page/" + SettingsPage.Focus.id)
                     },
                     onCreateTodayRule = { navController.navigate("rule/0?today=true") },
+                    onCreateTodayByWizard = { navController.navigate("wizard?today=true") },
                     onEditRule = { id -> navController.navigate("rule/$id") },
                 )
             }
@@ -140,18 +142,24 @@ fun DopaApp() {
             composable(TopLevel.Rules.route) {
                 RuleListScreen(
                     onCreate = { navController.navigate("rule/0") },
+                    onCreateByWizard = { navController.navigate("wizard?today=false") },
                     onEdit = { id -> navController.navigate("rule/$id") },
                     onOpenTags = { navController.navigate("tags") },
                     onOpenChanges = { navController.navigate(TopLevel.Changes.route) },
                 )
             }
 
-            // today=true は「今日だけ」の入口(集中タブ)から来たとき。作るルールに期限が付く
+            // today=true は「今日だけ」の入口(集中タブ)から来たとき。作るルールに期限が付く。
+            // draft=true は対話モードの「細かく直す」から来たとき。作りかけを受け取る
             composable(
-                "rule/{ruleId}?today={today}",
+                "rule/{ruleId}?today={today}&draft={draft}",
                 arguments = listOf(
                     navArgument("ruleId") { type = NavType.StringType },
                     navArgument("today") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                    navArgument("draft") {
                         type = NavType.BoolType
                         defaultValue = false
                     },
@@ -161,7 +169,35 @@ fun DopaApp() {
                 RuleEditScreen(
                     ruleId = ruleId,
                     today = entry.arguments?.getBoolean("today") ?: false,
+                    fromDraft = entry.arguments?.getBoolean("draft") ?: false,
                     onDone = { navController.popBackStack() },
+                )
+            }
+
+            // 質問に答えて作る。ルールの一覧と「今日だけ」の両方から入る
+            composable(
+                "wizard?today={today}",
+                arguments = listOf(
+                    navArgument("today") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+            ) { entry ->
+                RuleWizardScreen(
+                    today = entry.arguments?.getBoolean("today") ?: false,
+                    onDone = { navController.popBackStack() },
+                    // 編集画面で保存して戻ったとき、対話モードに戻らないように抜いておく
+                    onEditDraft = {
+                        navController.navigate("rule/0?draft=true") {
+                            popUpTo("wizard?today={today}") { inclusive = true }
+                        }
+                    },
+                    // 締切はルールではなく集中タブの締切で扱う
+                    onOpenDeadline = {
+                        navController.popBackStack()
+                        navController.switchTo(TopLevel.Focus)
+                    },
                 )
             }
 

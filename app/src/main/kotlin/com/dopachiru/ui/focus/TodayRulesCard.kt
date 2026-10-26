@@ -16,10 +16,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -30,7 +28,6 @@ import com.dopachiru.core.model.OneShotLimit
 import com.dopachiru.core.model.Rule
 import com.dopachiru.runtime.DopaRuntime
 import com.dopachiru.ui.rules.InstalledApps
-import com.dopachiru.ui.rules.PresetFlow
 import com.dopachiru.ui.rules.describeRule
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,16 +46,20 @@ import java.time.format.DateTimeFormatter
  *
  * ## 作れるものはルールの画面と同じ
  *
- * 雛形からでも、ゼロから組んでもいい([PresetFlow] と同じ並び)。
+ * 質問に答えてでも、ゼロから組んでもいい(ルールの画面と同じ入口)。
  * 前は「◯時間使ったら◯分休憩」しか作れなかった。
  */
 @Composable
-fun TodayRulesCard(onCreateFromScratch: () -> Unit, onEdit: (Long) -> Unit) {
+fun TodayRulesCard(
+    onCreateFromScratch: () -> Unit,
+    onCreateByWizard: () -> Unit,
+    onEdit: (Long) -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val rules by DopaRuntime.rules.rules.collectAsState(initial = emptyList())
-    val temporary = remember(rules) { rules.filter { it.isTemporary } }
-    var pickingPreset by remember { mutableStateOf(false) }
+    // お試し(3日)のルールも期限つき。並べるのは今日で消えるものだけ ── お試しは最後の日にここへ来る
+    val temporary = remember(rules) { rules.filter { OneShotLimit.endsToday(it, LocalDateTime.now()) } }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -90,27 +91,12 @@ fun TodayRulesCard(onCreateFromScratch: () -> Unit, onEdit: (Long) -> Unit) {
 
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickingPreset = true }) { Text("雛形から") }
+                OutlinedButton(onClick = onCreateByWizard) { Text("質問に答えて作る") }
                 OutlinedButton(onClick = onCreateFromScratch) { Text("ゼロから組む") }
             }
         }
     }
 
-    if (pickingPreset) {
-        PresetFlow(
-            onBuilt = { built ->
-                scope.launch {
-                    // 縛りを増やす側なので関門は通さない(ルールの画面と同じ)
-                    DopaRuntime.changes.request(
-                        ChangeKind.CREATE,
-                        OneShotLimit.forToday(built, LocalDateTime.now()),
-                        emptyList(),
-                    )
-                }
-            },
-            onDismiss = { pickingPreset = false },
-        )
-    }
 }
 
 /** いま効いている今日だけのルール1つぶん。 */

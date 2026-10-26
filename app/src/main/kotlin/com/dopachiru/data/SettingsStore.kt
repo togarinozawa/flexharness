@@ -77,6 +77,7 @@ class SettingsStore(private val context: Context) {
         val ruleCatalogsJson = stringPreferencesKey("rule_catalogs_json")
         val focusSchedulesJson = stringPreferencesKey("focus_schedules_json")
         val focusScheduleRunsJson = stringPreferencesKey("focus_schedule_runs_json")
+        val trialNoticesJson = stringPreferencesKey("trial_notices_json")
         val reservationPoliciesJson = stringPreferencesKey("reservation_policies_json")
         val reservationLeadMinutes = intPreferencesKey("reservation_lead_minutes")
     }
@@ -345,6 +346,20 @@ class SettingsStore(private val context: Context) {
         }.getOrDefault(emptyMap())
     }
 
+    /**
+     * お試しのルールの札([com.dopachiru.core.model.TrialNotices])。「uid@期限」→ 見た/知らせた。
+     * 端末の外へは出さない ── 知らせたかどうかは、その端末の通知の話なので。
+     */
+    val trialNotices: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+        val raw = prefs[Keys.trialNoticesJson] ?: return@map emptyMap()
+        runCatching {
+            DopaCore.json.decodeFromString(
+                MapSerializer(String.serializer(), String.serializer()),
+                raw,
+            )
+        }.getOrDefault(emptyMap())
+    }
+
     /** 覆う画面で書いた「次に開いたらやること」。アプリ(パッケージ)ごとに1件。端末の外へは出さない。 */
     val nextMemos: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
         val raw = prefs[Keys.nextMemosJson] ?: return@map emptyMap()
@@ -396,6 +411,14 @@ class SettingsStore(private val context: Context) {
     suspend fun setPeeks(peeks: List<Peek>) {
         val encoded = DopaCore.json.encodeToString(ListSerializer(Peek.serializer()), peeks)
         context.dataStore.edit { it[Keys.peeksJson] = encoded }
+    }
+
+    suspend fun setTrialNotices(marks: Map<String, String>) {
+        val encoded = DopaCore.json.encodeToString(
+            MapSerializer(String.serializer(), String.serializer()),
+            marks,
+        )
+        context.dataStore.edit { it[Keys.trialNoticesJson] = encoded }
     }
 
     suspend fun setFocusScheduleRuns(runs: Map<String, String>) {

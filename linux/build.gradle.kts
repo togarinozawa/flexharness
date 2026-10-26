@@ -14,7 +14,7 @@ plugins {
  * Windows 版(`:desktop`)とは別の数え方。Windows 版から写して始めたが、
  * 版まで引き継ぐと「1.29 から 1.30 で何が変わったか」が2つの OS で混ざる。
  */
-val linuxVersion = "1.3.0"
+val linuxVersion = "1.4.0"
 
 kotlin {
     jvmToolchain(21)
@@ -122,6 +122,8 @@ compose.desktop {
             linux {
                 // 入れ先は /opt/flexharness。起動は bin/flexharness
                 packageName = "flexharness"
+                // 指定しないと Java の既定の絵がメニューに出る。絵は tools/icons/IconGen.java で描く
+                iconFile.set(project.file("icon.png"))
                 menuGroup = "Utility"
                 appCategory = "utils"
                 shortcut = true

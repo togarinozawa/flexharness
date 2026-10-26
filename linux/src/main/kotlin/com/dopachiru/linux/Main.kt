@@ -1,5 +1,6 @@
 package com.dopachiru.linux
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -8,11 +9,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -33,11 +37,11 @@ import com.dopachiru.linux.ui.DeclareScreen
 import com.dopachiru.linux.ui.DelayScreen
 import com.dopachiru.linux.ui.DesktopApp
 import com.dopachiru.linux.ui.ESCAPE_HOLD_SECONDS
-import com.dopachiru.linux.ui.LockedScreen
-import com.dopachiru.linux.ui.SessionTimerScreen
 import com.dopachiru.linux.ui.IntentionChip
 import com.dopachiru.linux.ui.IntentionInputScreen
+import com.dopachiru.linux.ui.LockedScreen
 import com.dopachiru.linux.ui.RadioScreen
+import com.dopachiru.linux.ui.SessionTimerScreen
 import com.dopachiru.linux.ui.WarnScreen
 import kotlinx.coroutines.delay
 
@@ -105,6 +109,7 @@ fun main(args: Array<String>) = application {
         Window(
             onCloseRequest = { if (trayOk) windowOpen = false else windowState.isMinimized = true },
             title = "FlexHarness",
+            icon = remember { TrayIcon(false) },
             state = windowState,
         ) {
             DesktopApp()
@@ -290,15 +295,28 @@ fun main(args: Array<String>) = application {
 }
 
 /**
- * トレイの絵。止めているかどうかで色を変える。
+ * トレイの絵。Android のアイコンと同じ形(縦2本・横1本の紐とバックル)。止めているときは灰色。
  * アイコン用の依存をわざわざ足さずに済むので、その場で描く。
  */
 private class TrayIcon(private val paused: Boolean) : Painter() {
     override val intrinsicSize = Size(32f, 32f)
 
     override fun DrawScope.onDraw() {
-        drawCircle(color = if (paused) Color(0xFF5A5A6B) else Color(0xFF9BB8FF))
-        drawCircle(color = Color(0xFF0B0B12), radius = size.minDimension / 4.5f)
+        val u = size.minDimension / 108f
+        val strap = if (paused) Color(0xFF5A5A6B) else Color(0xFFF5C86B)
+        val buckle = if (paused) Color(0xFF8A8A9B) else Color(0xFF9B8CFF)
+        drawRoundRect(color = Color(0xFF1B1B2F), cornerRadius = CornerRadius(24 * u))
+        for (x in listOf(36f, 72f)) {
+            drawLine(strap, Offset(x * u, 22 * u), Offset(x * u, 86 * u), strokeWidth = 12 * u, cap = StrokeCap.Round)
+        }
+        drawLine(strap, Offset(36 * u, 54 * u), Offset(72 * u, 54 * u), strokeWidth = 9 * u)
+        drawRoundRect(
+            color = buckle,
+            topLeft = Offset(43 * u, 43 * u),
+            size = Size(22 * u, 22 * u),
+            cornerRadius = CornerRadius(6 * u),
+            style = Stroke(width = 7 * u),
+        )
     }
 }
 

@@ -42,14 +42,24 @@ class DopaApplication : Application() {
         ).apply {
             description = "いつもより長く使っているときの知らせ"
         }
+        // お試しのルールが消える前の知らせ。見張りの警告ほど強く鳴らさない
+        val rules = NotificationChannel(
+            CHANNEL_RULES,
+            getString(R.string.notification_channel_rules),
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "お試しで作ったルールが消える前の知らせ"
+        }
         manager.createNotificationChannel(monitor)
         manager.createNotificationChannel(guard)
         manager.createNotificationChannel(overuse)
+        manager.createNotificationChannel(rules)
     }
 
     companion object {
         const val CHANNEL_MONITOR = "monitor"
         const val CHANNEL_GUARD = "guard"
         const val CHANNEL_OVERUSE = "overuse"
+        const val CHANNEL_RULES = "rules"
     }
 }

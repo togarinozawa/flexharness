@@ -184,8 +184,9 @@ class RuleEditViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * @param today 新しく作るルールを「今日だけ」にする。明日の朝に消える。
+     * @param draft 対話モードで作りかけたルール。新規のときだけ使う([RuleDrafts])。
      */
-    fun load(ruleId: Long, today: Boolean = false) {
+    fun load(ruleId: Long, today: Boolean = false, draft: Rule? = null) {
         if (_state.value.loaded) return
         viewModelScope.launch {
             val tags = DopaRuntime.rules.tags.first()
@@ -194,7 +195,8 @@ class RuleEditViewModel(app: Application) : AndroidViewModel(app) {
             val me = DopaRuntime.myDeviceId
             val catalogs = DopaRuntime.settings.ruleCatalogs.first().filter { it.deviceId != me }
             val everything = DopaRuntime.rules.getAll()
-            val rule = if (ruleId == 0L) null else DopaRuntime.rules.getById(ruleId)
+            // 作りかけは id が 0 のまま入れる。保存すると新規作成になる
+            val rule = if (ruleId == 0L) draft else DopaRuntime.rules.getById(ruleId)
             if (rule == null) {
                 _state.update {
                     it.copy(
@@ -422,6 +424,7 @@ fun RuleEditScreen(
     ruleId: Long,
     onDone: () -> Unit,
     today: Boolean = false,
+    fromDraft: Boolean = false,
     viewModel: RuleEditViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -429,13 +432,18 @@ fun RuleEditScreen(
     var queuedNotice by remember { mutableStateOf(false) }
     val labelOf: (String) -> String = { InstalledApps.labelOf(context, it) }
 
-    androidx.compose.runtime.LaunchedEffect(ruleId) { viewModel.load(ruleId, today) }
+    androidx.compose.runtime.LaunchedEffect(ruleId) {
+        viewModel.load(ruleId, today, if (fromDraft && ruleId == 0L) RuleDrafts.take() else null)
+    }
 
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
                 when {
-                    state.expiresAtSec > 0L && ruleId == 0L -> "今日だけのルール"
+                    // お試し(3日)も期限つきだが、今日だけではない
+                    ruleId == 0L && state.expiresAtSec > 0L &&
+                        state.expiresAtSec <= OneShotLimit.endOfDay(LocalDateTime.now()) -> "今日だけのルール"
+                    ruleId == 0L && state.expiresAtSec > 0L -> "お試しのルール"
                     ruleId == 0L -> "新しいルール"
                     else -> "ルールを編集"
                 },
@@ -848,7 +856,7 @@ private fun ModeCard(mode: TargetMode, selected: Boolean, onClick: () -> Unit) {
 
 /** URL の指定。束から選ぶのと、手で足すのと両方。 */
 @Composable
-private fun SitesEditor(
+internal fun SitesEditor(
     sites: Set<String>,
     onAdd: (String) -> Unit,
     onRemove: (String) -> Unit,

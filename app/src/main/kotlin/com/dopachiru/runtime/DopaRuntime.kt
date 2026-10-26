@@ -1294,7 +1294,58 @@ object DopaRuntime {
         syncIfDue()
         startScheduledFocusIfDue()
         applyPausesIfDue()
+        noticeTrialsIfDue()
         return if (batterySaverMode) SAVER_TICK_MS else ACTIVE_TICK_MS
+    }
+
+    // ---- お試しのルール ------------------------------------------------
+
+    @Volatile
+    private var lastTrialCheckMs = 0L
+
+    /**
+     * お試しのルールが消える前に1回だけ知らせる。いつ知らせるかは [TrialNotices] が決める。
+     *
+     * 刻みから見るので、画面が消えているあいだは知らせない。次に点けたときに出る。
+     */
+    private fun noticeTrialsIfDue() {
+        val now = System.currentTimeMillis()
+        if (now - lastTrialCheckMs < TRIAL_CHECK_MS) return
+        lastTrialCheckMs = now
+        scope.launch {
+            runCatching {
+                val marks = settings.trialNotices.first()
+                val plan = com.dopachiru.core.model.TrialNotices.plan(rules.getAll(), marks, java.time.LocalDateTime.now())
+                // 先に札を書く。書けずに知らせだけ出ると、次の刻みでまた出る
+                if (plan.marks != marks) settings.setTrialNotices(plan.marks)
+                plan.notify.forEach { notifyTrialEnding(it) }
+            }
+        }
+    }
+
+    private fun notifyTrialEnding(rule: Rule) {
+        val left = com.dopachiru.core.model.OneShotLimit.daysLeft(rule.expiresAtSec, java.time.LocalDateTime.now())
+        val whenText = if (left >= 2) "明日の夜で終わります" else "今夜で終わります(明日の朝4時に消えます)"
+        val text = "お試しで作った「${rule.name}」は$whenText。" +
+            "続けるなら、ルールの一覧で「ずっとにする」を押してください。何もしなければ、そのまま消えます。"
+        val open = android.app.PendingIntent.getActivity(
+            appContext,
+            TRIAL_NOTIFICATION_BASE,
+            android.content.Intent(appContext, com.dopachiru.MainActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = androidx.core.app.NotificationCompat.Builder(appContext, com.dopachiru.DopaApplication.CHANNEL_RULES)
+            .setSmallIcon(com.dopachiru.R.drawable.ic_notification)
+            .setContentTitle("お試しのルールがもうすぐ終わります")
+            .setContentText(text)
+            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true)
+            .setContentIntent(open)
+            .build()
+        val manager = appContext.getSystemService(android.app.NotificationManager::class.java) ?: return
+        // ルールごとに1枚。2本同時に終わるとき、後のほうが前のほうを消さないように
+        runCatching { manager.notify(TRIAL_NOTIFICATION_BASE + (rule.uid.hashCode() and 0xFFFF), notification) }
     }
 
     // ---- 時間で戻る一時停止 --------------------------------------------
@@ -1819,6 +1870,8 @@ object DopaRuntime {
     /** 関門を通り終えた一時停止を見に行く間隔。待ちは分単位なので、これで足りる。 */
     private const val PAUSE_CHECK_MS = 15_000L
     private const val PAUSE_NOTIFICATION_ID = 1004
+    private const val TRIAL_NOTIFICATION_BASE = 0x50000
+    private const val TRIAL_CHECK_MS = 5 * 60_000L
 
     private const val SAVER_TICK_MS = 180_000L
     private const val IDLE_TICK_MS = 600_000L
