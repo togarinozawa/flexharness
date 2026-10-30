@@ -17,6 +17,7 @@ import com.dopachiru.R
 import com.dopachiru.block.BlockScreen
 import com.dopachiru.block.DeclareScreen
 import com.dopachiru.block.DelayScreen
+import com.dopachiru.block.DemoHud
 import com.dopachiru.block.LockoutScreen
 import com.dopachiru.block.OverlayHost
 import com.dopachiru.block.OverlayMode
@@ -54,6 +55,8 @@ import com.dopachiru.core.model.PeekCheck
 import com.dopachiru.MainActivity
 import com.dopachiru.core.model.DeadlineTasks
 import com.dopachiru.core.model.Focus
+import com.dopachiru.core.time.TimeScale
+import com.dopachiru.demo.DemoMode
 import com.dopachiru.runtime.DopaRuntime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -145,6 +148,34 @@ class DopaAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** デモ版の右上の札。本番では作らない。 */
+    private var demoHud: DemoHud? = null
+
+    /**
+     * 札を1秒ごとに描き直す。判定の予約とは別に回す ── 判定は「次に変わる時刻」まで
+     * 眠るので、それに乗ると数え下ろしが止まって見える。
+     */
+    private val demoTick = object : Runnable {
+        override fun run() {
+            refreshDemoHud()
+            handler.postDelayed(this, DEMO_HUD_TICK_MS)
+        }
+    }
+
+    private fun refreshDemoHud() {
+        val hud = demoHud ?: return
+        val pkg = foregroundPackage
+        val show = pkg != null && DemoMode.hud.value && DopaRuntime.screenOn &&
+            pkg != packageName && pkg !in launcherPackages && pkg !in settingsPackages &&
+            DopaRuntime.isTargeted(pkg)
+        if (!show) {
+            if (hud.isShowing) hud.hide()
+            return
+        }
+        val status = DopaRuntime.demoStatus(pkg!!) ?: return
+        hud.update(appLabel(pkg), status)
+    }
+
     /** いま予告を数えている最中の一続き。数え終わるまで本番の閉じるを出さない。 */
     private val prewarnPending = HashSet<String>()
 
@@ -185,6 +216,11 @@ class DopaAccessibilityService : AccessibilityService() {
         overlay = OverlayHost(this)
         // 封印中は戻るキーを押しても何も起きない
         overlay.onBackPressed = { }
+        if (DemoMode.enabled) {
+            demoHud = DemoHud(this)
+            overlay.onAttached = { demoHud?.bringToFront() }
+            handler.post(demoTick)
+        }
 
         launcherPackages = resolveLauncherPackages()
         imePackages = resolveImePackages()
@@ -216,8 +252,16 @@ class DopaAccessibilityService : AccessibilityService() {
         if (pkg in launcherPackages || pkg in settingsPackages) return
         if (!DopaRuntime.isTargeted(pkg)) return
 
-        val ceiling = if (DopaRuntime.batterySaverMode) CHECK_CEILING_SAVER_MS else CHECK_CEILING_MS
-        val delay = DopaRuntime.nextCheckDelayMs(pkg, CHECK_FLOOR_MS, ceiling)
+        // デモ版は1分が数秒に縮んでいる。本番の間隔のままだと、30秒で止まるはずが
+        // 最悪30秒遅れて「止まらない」ように見える
+        val scaled = TimeScale.isScaled
+        val ceiling = when {
+            scaled -> DEMO_CHECK_CEILING_MS
+            DopaRuntime.batterySaverMode -> CHECK_CEILING_SAVER_MS
+            else -> CHECK_CEILING_MS
+        }
+        val floor = if (scaled) DEMO_CHECK_FLOOR_MS else CHECK_FLOOR_MS
+        val delay = DopaRuntime.nextCheckDelayMs(pkg, floor, ceiling)
         handler.postDelayed(evaluateOnce, delay)
         scheduleReminder(pkg)
     }
@@ -428,6 +472,8 @@ class DopaAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(evaluateOnce)
         handler.removeCallbacks(overuseTick)
         handler.removeCallbacks(contentCheck)
+        handler.removeCallbacks(demoTick)
+        demoHud?.hide()
         pendingIgnoreChecks.values.forEach { handler.removeCallbacks(it) }
         pendingIgnoreChecks.clear()
         runCatching { unregisterReceiver(systemReceiver) }
@@ -1115,7 +1161,7 @@ class DopaAccessibilityService : AccessibilityService() {
     private fun penaltyNote(rule: Rule): String = ""
 
     private fun showWarn(pkg: String, act: Decision.Act) {
-        val repeatMs = act.params.int(WarnAction.KEY_REPEAT_MINUTES, 5) * 60_000L
+        val repeatMs = TimeScale.millis(act.params.int(WarnAction.KEY_REPEAT_MINUTES, 5))
         val lastShown = warnShownAt[act.rule.id] ?: 0L
         val now = System.currentTimeMillis()
         if (now - lastShown < repeatMs) return
@@ -1163,7 +1209,7 @@ class DopaAccessibilityService : AccessibilityService() {
             }
         }
         pendingIgnoreChecks[act.rule.id] = check
-        handler.postDelayed(check, ignoreMinutes * 60_000L)
+        handler.postDelayed(check, TimeScale.millis(ignoreMinutes))
     }
 
     private fun showDeclareOrPass(pkg: String, act: Decision.Act) {
@@ -1304,6 +1350,9 @@ class DopaAccessibilityService : AccessibilityService() {
         /** 条件が「いつ変わるか分からない」と答えたときの間隔。 */
         private const val CHECK_CEILING_MS = 30_000L
         private const val CHECK_CEILING_SAVER_MS = 120_000L
+        private const val DEMO_HUD_TICK_MS = 1_000L
+        private const val DEMO_CHECK_FLOOR_MS = 500L
+        private const val DEMO_CHECK_CEILING_MS = 2_000L
 
         private const val OVERRIDE_GRACE_MS = 5 * 60_000L
 

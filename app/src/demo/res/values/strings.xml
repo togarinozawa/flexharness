@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 展示用。本番と並べて入れたとき、ホームでも設定のユーザー補助でも見分けられるように -->
+<resources>
+    <string name="app_name">FlexHarness Demo</string>
+    <string name="accessibility_service_label">FlexHarness Demo 監視</string>
+</resources>

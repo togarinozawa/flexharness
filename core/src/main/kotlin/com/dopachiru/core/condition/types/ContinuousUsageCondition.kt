@@ -5,6 +5,7 @@ import com.dopachiru.core.condition.ConditionType
 import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 
 /**
@@ -39,6 +40,6 @@ object ContinuousUsageCondition : ConditionType {
      */
     override fun nextChangeAt(p: Params, ctx: EvalContext): LocalDateTime {
         val remaining = p.int(KEY_MINUTES, 30) - ctx.usage.currentSessionMinutes
-        return if (remaining > 0) ctx.now.plusMinutes(remaining.toLong()) else ctx.now.plusDays(1)
+        return if (remaining > 0) TimeScale.after(ctx.now, remaining.toLong()) else ctx.now.plusDays(1)
     }
 }

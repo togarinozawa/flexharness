@@ -1,5 +1,6 @@
 package com.dopachiru.core.model
 
+import com.dopachiru.core.time.TimeScale
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.ZoneId
@@ -134,9 +135,9 @@ object Peeks {
         }
         val last = counted.maxOfOrNull { it.untilSec }
         if (last != null && a.gapMinutes > 0) {
-            val readyAt = last + a.gapMinutes * 60L
+            val readyAt = last + TimeScale.seconds(a.gapMinutes)
             if (nowSec < readyAt) {
-                val wait = ((readyAt - nowSec + 59) / 60).toInt()
+                val wait = TimeScale.minutesCeil(readyAt - nowSec)
                 return PeekCheck.Refused("次にのぞけるのは、あと${wait}分たってから。")
             }
         }
@@ -148,7 +149,7 @@ object Peeks {
             source = source,
             packageName = packageName,
             startSec = nowSec,
-            untilSec = nowSec + allowance.normalized().minutes * 60L,
+            untilSec = nowSec + TimeScale.seconds(allowance.normalized().minutes),
         )
 
     /** 古い記録を落とす。 */

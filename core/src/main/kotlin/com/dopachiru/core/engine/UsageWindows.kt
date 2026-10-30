@@ -1,5 +1,7 @@
 package com.dopachiru.core.engine
 
+import com.dopachiru.core.time.TimeScale
+
 /**
  * いま張られている「窓」の中身。[UsageWindows.current] が返す。
  *
@@ -14,13 +16,13 @@ data class WindowUsage(
     val open: Boolean get() = remainingSeconds > 0
 
     /** 使った分。切り捨て。 */
-    val usedMinutes: Int get() = (usedSeconds / 60).toInt()
+    val usedMinutes: Int get() = TimeScale.minutes(usedSeconds)
 
     /**
      * 明けるまでの分。**切り上げる** ── 切り捨てると、残り30秒を「あと0分」と
      * 出したまま開かない時間ができて、壊れているように見える。
      */
-    val remainingMinutes: Int get() = ((remainingSeconds + 59) / 60).toInt()
+    val remainingMinutes: Int get() = TimeScale.minutesCeil(remainingSeconds)
 
     companion object {
         val NONE = WindowUsage(0, 0)
@@ -87,5 +89,5 @@ object UsageWindows {
 
     /** [current] を分で指定する版。 */
     fun current(spans: List<Pair<Long, Long>>, windowMinutes: Int, nowSec: Long): WindowUsage =
-        current(spans, windowMinutes * 60L, nowSec)
+        current(spans, TimeScale.seconds(windowMinutes), nowSec)
 }

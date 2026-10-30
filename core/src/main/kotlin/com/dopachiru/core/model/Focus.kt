@@ -1,5 +1,6 @@
 package com.dopachiru.core.model
 
+import com.dopachiru.core.time.TimeScale
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -111,7 +112,7 @@ object Focus {
         return Lockout(
             uid = UUID.randomUUID().toString(),
             target = target,
-            untilEpochSec = nowSec + length * 60L,
+            untilEpochSec = nowSec + TimeScale.seconds(length),
             reason = label.ifBlank { "自分で始めた集中" },
             createdAtEpochSec = nowSec,
             earlyExit = EarlyExit(
@@ -125,8 +126,8 @@ object Focus {
 
     /** 時間を足す。上限は始めた時刻からの [MAX_MINUTES]。 */
     fun extend(lockout: Lockout, addMinutes: Int, nowSec: Long): Lockout {
-        val ceiling = lockout.createdAtEpochSec + MAX_MINUTES * 60L
-        val extended = (lockout.untilEpochSec + addMinutes * 60L).coerceAtMost(ceiling)
+        val ceiling = lockout.createdAtEpochSec + TimeScale.seconds(MAX_MINUTES)
+        val extended = (lockout.untilEpochSec + TimeScale.seconds(addMinutes)).coerceAtMost(ceiling)
         // 期限切れのものを延ばして生き返らせない
         if (!lockout.isActiveAt(nowSec)) return lockout
         return lockout.copy(untilEpochSec = extended)

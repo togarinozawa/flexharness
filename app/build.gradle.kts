@@ -74,6 +74,31 @@ android {
             signingConfig = signingConfigs.getByName("sideload")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+        /**
+         * 展示用。`gradlew :app:distDemo`
+         *
+         * 別のアプリ(`com.dopachiru.demo`)として入るので、本番と並べて置けて、
+         * 本番の更新も同期も巻き込まない。中身は本番と同じで、違うのは
+         * 「ルールの1分を数秒に縮める」([com.dopachiru.core.time.TimeScale])と
+         * 右上の札・デモ用ルールの口が出ることだけ。
+         *
+         * flavor にしないのは、タスク名(testDebugUnitTest・assembleRelease)が
+         * 全部変わって、手順書と dist が壊れるため。
+         *
+         * 署名は debug 鍵。展示用の端末に入れて終わりなので、上書き更新できなくても
+         * 困らない ── 専用の鍵をここで使うと、鍵の無い機械でデモが組めなくなる。
+         */
+        create("demo") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            buildConfigField("boolean", "DEMO", "true")
+        }
+        getByName("debug") { buildConfigField("boolean", "DEMO", "false") }
+        getByName("release") { buildConfigField("boolean", "DEMO", "false") }
     }
 
     compileOptions {
@@ -83,6 +108,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -128,6 +154,22 @@ tasks.register<Copy>("dist") {
  * 0.41.0 までは debug 鍵の 827020ec…、0.42.0 からFlexHarness専用の鍵。
  */
 val expectedSigningSha256 = "d4a015b4a3fb8d39541ad54efdd31ebb3b0376f511a44ccc42c7051859e9ea73"
+
+/**
+ * 展示用の APK を `dist/` に置く。`gradlew :app:distDemo`
+ *
+ * 名前を `flexharness-demo-…` にしてあるのは、リリースに紛れても
+ * `/version` が本番の APK と取り違えないようにするため。
+ */
+tasks.register<Copy>("distDemo") {
+    group = "distribution"
+    description = "展示用の demo APK を dist/ に版つきでコピーする"
+    dependsOn("assembleDemo")
+    from(layout.buildDirectory.file("outputs/apk/demo/app-demo.apk"))
+    into(rootProject.layout.projectDirectory.dir("dist"))
+    val name = "flexharness-demo-" + android.defaultConfig.versionName + ".apk"
+    rename { name }
+}
 
 tasks.register("checkSigningKey") {
     group = "verification"

@@ -5,6 +5,7 @@ import com.dopachiru.core.condition.ConditionType
 import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 
 /**
@@ -42,12 +43,12 @@ object DeclaredBudgetCondition : ConditionType {
 
     override fun closesAt(p: Params, ctx: EvalContext): LocalDateTime? {
         val remaining = ctx.declaredRemainingMinutes ?: return null
-        return if (remaining > 0) ctx.now.plusMinutes(remaining.toLong()) else null
+        return if (remaining > 0) TimeScale.after(ctx.now, remaining.toLong()) else null
     }
 
     /** 残り時間が尽きるまでは変わらない。宣言していなければ時間では変わらない。 */
     override fun nextChangeAt(p: Params, ctx: EvalContext): LocalDateTime {
         val remaining = ctx.declaredRemainingMinutes ?: return ctx.now.plusDays(1)
-        return if (remaining > 0) ctx.now.plusMinutes(remaining.toLong()) else ctx.now.plusDays(1)
+        return if (remaining > 0) TimeScale.after(ctx.now, remaining.toLong()) else ctx.now.plusDays(1)
     }
 }

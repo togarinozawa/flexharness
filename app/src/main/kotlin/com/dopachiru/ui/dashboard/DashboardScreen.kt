@@ -167,6 +167,9 @@ fun DashboardScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        // 展示の係の人が最初に触るもの。本番では何も出さない
+        if (com.dopachiru.demo.DemoMode.enabled) item { com.dopachiru.ui.demo.DemoCard() }
+
         item { GrowthCard(streak) }
 
         // 罰は一番上に出す。「なぜ開かないのか」が分からないまま塞がれるのが

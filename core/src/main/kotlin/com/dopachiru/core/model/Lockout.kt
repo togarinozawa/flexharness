@@ -1,5 +1,6 @@
 package com.dopachiru.core.model
 
+import com.dopachiru.core.time.TimeScale
 import kotlinx.serialization.Serializable
 
 /**
@@ -45,7 +46,7 @@ data class Lockout(
     fun isActiveAt(nowSec: Long): Boolean = nowSec < untilEpochSec
 
     fun remainingMinutesAt(nowSec: Long): Int =
-        ((untilEpochSec - nowSec + 59) / 60).coerceAtLeast(0).toInt()
+        TimeScale.minutesCeil(untilEpochSec - nowSec).coerceAtLeast(0)
 
     /** 自分で始めたものか。罰なら false。 */
     val isChosen: Boolean get() = earlyExit != null

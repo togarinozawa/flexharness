@@ -6,6 +6,7 @@ import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
 import com.dopachiru.core.time.ResetPolicy
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 
 /** 集計期間のうちの合計使用時間が閾値を超えたら成立する。 */
@@ -50,6 +51,6 @@ object TotalUsageCondition : ConditionType {
         val periodEnd = policy.periodEnd(ctx.now)
         val remaining = p.int(KEY_MINUTES, 60) - ctx.usage.usageMinutesIn(policy)
         if (remaining <= 0) return periodEnd
-        return minOf(ctx.now.plusMinutes(remaining.toLong()), periodEnd)
+        return minOf(TimeScale.after(ctx.now, remaining.toLong()), periodEnd)
     }
 }

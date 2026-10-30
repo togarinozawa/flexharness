@@ -7,6 +7,7 @@ import com.dopachiru.core.model.Lockout
 import com.dopachiru.core.model.Lockouts
 import com.dopachiru.core.model.PeekAllowance
 import com.dopachiru.core.model.Target
+import com.dopachiru.core.time.TimeScale
 import com.dopachiru.data.db.LockoutDao
 import com.dopachiru.data.db.LockoutEntity
 import kotlinx.coroutines.CoroutineScope
@@ -61,7 +62,7 @@ class LockoutRepository(
             // ([purgeExpired] が「どれが落ちたか」を uid と id で照合している)
             uid = java.util.UUID.randomUUID().toString(),
             target = target,
-            untilEpochSec = now + minutes * 60L,
+            untilEpochSec = now + TimeScale.seconds(minutes),
             reason = reason,
             createdAtEpochSec = now,
         )

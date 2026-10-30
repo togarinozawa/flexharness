@@ -58,6 +58,13 @@ class OverlayHost(private val service: AccessibilityService) {
     /** 戻るキーを押されたときに呼ばれる。BLOCKING のときだけ機能する。 */
     var onBackPressed: (() -> Unit)? = null
 
+    /**
+     * 新しくウィンドウを足した直後に呼ばれる。デモの札([DemoHud])が
+     * 上に載り直すため ── 後から足したウィンドウが上に来るので、放っておくと
+     * ブロック画面の下に札が隠れる。
+     */
+    var onAttached: (() -> Unit)? = null
+
     fun show(
         key: String,
         mode: OverlayMode,
@@ -106,6 +113,7 @@ class OverlayHost(private val service: AccessibilityService) {
         lifecycleOwner = owner
         appliedMode = mode
         currentKey = key
+        onAttached?.invoke()
     }
 
     fun hide() {
@@ -169,7 +177,7 @@ private class BlockingFrameLayout @JvmOverloads constructor(
  * Service が持つウィンドウで Compose を動かすための最小の Owner。
  * Activity の外で ComposeView を使うには、この3つを View ツリーに載せる必要がある。
  */
-private class OverlayLifecycleOwner :
+internal class OverlayLifecycleOwner :
     LifecycleOwner,
     ViewModelStoreOwner,
     SavedStateRegistryOwner {

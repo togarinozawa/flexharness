@@ -1,6 +1,7 @@
 package com.dopachiru.core.engine
 
 import com.dopachiru.core.time.ResetPolicy
+import com.dopachiru.core.time.TimeScale
 import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -103,13 +104,13 @@ object UsageBudgets {
      * 無ければ 0 ── 待つ必要が無いので。
      */
     private fun away(spans: List<Pair<Long, Long>>, awayMinutes: Int, nowSec: Long): WindowUsage {
-        val used = UsageSpans.secondsSinceBreak(spans, awayMinutes * 60L, nowSec)
+        val used = UsageSpans.secondsSinceBreak(spans, TimeScale.seconds(awayMinutes), nowSec)
         if (used <= 0L) return WindowUsage.NONE
         val lastEnd = spans.filter { it.second > it.first }.maxOfOrNull { it.second } ?: nowSec
         val idle = (nowSec - lastEnd).coerceAtLeast(0L)
         return WindowUsage(
             usedSeconds = used,
-            remainingSeconds = (awayMinutes * 60L - idle).coerceAtLeast(0L),
+            remainingSeconds = (TimeScale.seconds(awayMinutes) - idle).coerceAtLeast(0L),
         )
     }
 

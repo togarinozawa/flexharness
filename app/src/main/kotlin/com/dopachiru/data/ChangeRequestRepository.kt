@@ -7,6 +7,7 @@ import com.dopachiru.core.gate.ChangeStatus
 import com.dopachiru.core.gate.Gate
 import com.dopachiru.core.gate.GatePolicy
 import com.dopachiru.core.model.Rule
+import com.dopachiru.core.time.TimeScale
 import com.dopachiru.data.db.ChangeRequestDao
 import com.dopachiru.data.db.ChangeRequestEntity
 import kotlinx.coroutines.flow.Flow
@@ -117,7 +118,7 @@ class ChangeRequestRepository(
                 if (pending.pauseMinutes > 0) {
                     // 期限は**通した時刻から**数える。申請した時刻から数えると、
                     // 関門の待ちのあいだに止める時間が目減りする
-                    val until = System.currentTimeMillis() / 1000 + pending.pauseMinutes * 60L
+                    val until = System.currentTimeMillis() / 1000 + TimeScale.seconds(pending.pauseMinutes)
                     ruleRepository.setPausedUntil(id, until)
                 } else {
                     ruleRepository.setEnabled(id, false)

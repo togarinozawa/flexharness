@@ -1,5 +1,6 @@
 package com.dopachiru.data
 
+import com.dopachiru.core.time.TimeScale
 import com.dopachiru.data.db.DeclarationDao
 import com.dopachiru.data.db.DeclarationEntity
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +37,7 @@ class DeclarationManager(
         dao.allActive().forEach {
             active[it.packageName] = Active(
                 rowId = it.id,
-                budgetSec = it.budgetMinutes * 60L,
+                budgetSec = TimeScale.seconds(it.budgetMinutes),
                 consumedSec = it.consumedSec,
                 lastTickSec = now,
                 lastForegroundSec = now,
@@ -48,8 +49,12 @@ class DeclarationManager(
     fun remainingMinutes(packageName: String): Int? {
         val entry = active[packageName] ?: return null
         // 残り30秒は「残り0分」として扱う(切り上げない)
-        return ((entry.budgetSec - entry.consumedSec) / 60).toInt()
+        return TimeScale.minutes(entry.budgetSec - entry.consumedSec)
     }
+
+    /** [remainingMinutes] の秒の版。デモの札が実時間で数え下ろすため。 */
+    fun remainingSeconds(packageName: String): Long? =
+        active[packageName]?.let { it.budgetSec - it.consumedSec }
 
     fun hasDeclaration(packageName: String): Boolean = active.containsKey(packageName)
 
@@ -57,7 +62,7 @@ class DeclarationManager(
         val now = nowSeconds()
         val entry = Active(
             rowId = 0L,
-            budgetSec = minutes * 60L,
+            budgetSec = TimeScale.seconds(minutes),
             consumedSec = 0L,
             lastTickSec = now,
             lastForegroundSec = now,
@@ -109,6 +114,11 @@ class DeclarationManager(
         val entry = active.remove(packageName) ?: return
         val rowId = entry.rowId
         if (rowId != 0L) scope.launch { dao.deactivate(rowId) }
+    }
+
+    /** 宣言を全部破棄する。デモで次の人に渡す前のやり直し用。 */
+    fun clearAll() {
+        active.keys.toList().forEach { clear(it) }
     }
 
     private fun nowSeconds(): Long = System.currentTimeMillis() / 1000

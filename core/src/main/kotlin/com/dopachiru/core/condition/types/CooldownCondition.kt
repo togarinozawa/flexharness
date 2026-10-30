@@ -5,6 +5,7 @@ import com.dopachiru.core.condition.ConditionType
 import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -71,10 +72,10 @@ object CooldownCondition : ConditionType {
     private fun effectiveSinceMinutes(ctx: EvalContext): Int? {
         val rawSince = ctx.minutesSinceLastUseOf(ctx.currentRuleId) ?: return null
         val windowParams = ctx.clauseTimeRangeParams ?: return rawSince
-        val lastUseAt = ctx.now.minusMinutes(rawSince.toLong())
+        val lastUseAt = TimeScale.before(ctx.now, rawSince.toLong())
         val windowEnd = TimeRangeCondition.windowEndContaining(windowParams, lastUseAt) ?: return rawSince
         if (windowEnd.isAfter(ctx.now)) return rawSince
-        return ChronoUnit.MINUTES.between(windowEnd, ctx.now).toInt()
+        return TimeScale.minutes(ChronoUnit.SECONDS.between(windowEnd, ctx.now))
     }
 
     override fun summarize(p: Params): String {
@@ -96,6 +97,6 @@ object CooldownCondition : ConditionType {
         val since = effectiveSinceMinutes(ctx)
         if (since == null || threshold <= 0) return ctx.now.plusDays(1)
         val remaining = threshold - since
-        return if (remaining > 0) ctx.now.plusMinutes(remaining.toLong()) else ctx.now.plusDays(1)
+        return if (remaining > 0) TimeScale.after(ctx.now, remaining.toLong()) else ctx.now.plusDays(1)
     }
 }

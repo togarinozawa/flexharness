@@ -5,6 +5,7 @@ import com.dopachiru.core.condition.ConditionType
 import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 
 /**
@@ -83,9 +84,9 @@ object UsageSinceBreakCondition : ConditionType {
         val breakMinutes = p.int(KEY_BREAK_MINUTES, 10).toLong()
         val remaining = p.int(KEY_MINUTES, 20) - used(p, ctx)
         return if (remaining > 0) {
-            ctx.now.plusMinutes(remaining.toLong())
+            TimeScale.after(ctx.now, remaining.toLong())
         } else {
-            ctx.now.plusMinutes(breakMinutes)
+            TimeScale.after(ctx.now, breakMinutes)
         }
     }
 

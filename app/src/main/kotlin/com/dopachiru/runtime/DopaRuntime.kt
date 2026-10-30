@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.PowerManager
 import com.dopachiru.core.DopaCore
 import com.dopachiru.core.DopaFeatures
+import com.dopachiru.core.action.ActionRegistry
 import com.dopachiru.core.action.Rotation
 import com.dopachiru.core.action.types.BlockAction
 import com.dopachiru.core.action.types.LockoutAction
@@ -54,6 +55,7 @@ import com.dopachiru.core.sync.RuleStates
 import com.dopachiru.core.model.RuleLinks
 import com.dopachiru.core.sync.SyncKinds
 import com.dopachiru.core.time.ResetPolicy
+import com.dopachiru.core.time.TimeScale
 import com.dopachiru.service.ShortsGuardSettings
 import com.dopachiru.data.CalendarReader
 import com.dopachiru.data.ChangeRequestRepository
@@ -222,6 +224,8 @@ object DopaRuntime {
         DopaCore.registerAll()
 
         val app = context.applicationContext
+        // 縮尺は何より先に。記録を温めたり判定したりしたあとで縮めると、そこだけ本番の速さで数える
+        com.dopachiru.demo.DemoMode.init(app)
         appContext = app
         powerManager = app.getSystemService(PowerManager::class.java)
         protectedApps = ProtectedApps(app)
@@ -861,7 +865,7 @@ object DopaRuntime {
         if (points.currentBalance() < policy.passCost) return false
 
         points.record(-policy.passCost, PointReason.PASS_BOUGHT, "${policy.passMinutes}分")
-        val until = System.currentTimeMillis() / 1000 + policy.passMinutes * 60L
+        val until = System.currentTimeMillis() / 1000 + TimeScale.seconds(policy.passMinutes)
         settings.setPassUntil(until)
         passUntilSec = until
         return true
@@ -946,6 +950,100 @@ object DopaRuntime {
                 !targeted -> "対象外"
                 else -> "条件を満たさない"
             }
+    }
+
+    /**
+     * デモの札に出すもの。判定と**同じ計算**から出す ── 札だけ別に数えると、
+     * 「あと0秒」と出たのに止まらない、が展示の目の前で起きる。
+     */
+    fun demoStatus(packageName: String): DemoStatus? {
+        if (!initialized) return null
+        val now = now()
+        val nowSec = System.currentTimeMillis() / 1000
+        val ctx = buildContext(packageName, now)
+        val tags = tagsFor(packageName)
+
+        val spans = usage.spansFor(packageName, nowSec)
+        val todayFrom = ResetPolicy().periodStart(now).atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
+        val todaySec = spans.sumOf { (s, e) -> (e - maxOf(s, todayFrom)).coerceAtLeast(0) }
+        val sessionSec = spans.lastOrNull()
+            ?.takeIf { usage.currentSessionSeed() == it.first }
+            ?.let { nowSec - it.first } ?: 0L
+
+        fun secondsUntil(at: LocalDateTime?): Long? =
+            at?.let { Duration.between(now, it).seconds.coerceAtLeast(0) }
+                // 一日先、のような「時間では変わらない」答えは札に出しても読めない
+                ?.takeIf { it <= 6 * 3600 }
+
+        val lines = ArrayList<DemoStatus.Line>()
+        for (rule in Rules.effectiveAt(ruleCache, nowSec)) {
+            if (!rule.enabled || !rule.target.matches(packageName, tags)) continue
+            for (clause in rule.clauses) {
+                val action = clause.mainAction ?: continue
+                val cctx = ctx.forClause(rule, clause)
+                val firing = engine.evaluate(clause.condition, cctx)
+                lines += DemoStatus.Line(
+                    ruleName = rule.name,
+                    actionName = ActionRegistry[action.actionId]?.displayName ?: action.actionId,
+                    firing = firing,
+                    secondsLeft = if (firing) {
+                        secondsUntil(engine.nextChangeAt(clause.condition, cctx))
+                    } else {
+                        secondsUntil(engine.closeEta(clause.condition, cctx))
+                    },
+                )
+            }
+        }
+        lockouts.current(nowSec).filter { it.target.matches(packageName, tags) }.forEach {
+            lines += DemoStatus.Line(
+                ruleName = it.reason.ifBlank { "閉め出し" },
+                actionName = "閉め出し",
+                firing = true,
+                secondsLeft = (it.untilEpochSec - nowSec).coerceAtLeast(0),
+            )
+        }
+
+        return DemoStatus(
+            sessionSeconds = sessionSec,
+            todaySeconds = todaySec,
+            opensToday = ctx.usage.sessionCountIn(ResetPolicy()),
+            declaredSecondsLeft = declarations.remainingSeconds(packageName),
+            lines = lines,
+        )
+    }
+
+    data class DemoStatus(
+        val sessionSeconds: Long,
+        val todaySeconds: Long,
+        val opensToday: Int,
+        val declaredSecondsLeft: Long?,
+        val lines: List<Line>,
+    ) {
+        /**
+         * @param secondsLeft 成立していなければ「あと何秒で成立するか」、成立していれば
+         *   「あと何秒で外れるか」。時間では変わらないなら null。
+         */
+        data class Line(
+            val ruleName: String,
+            val actionName: String,
+            val firing: Boolean,
+            val secondsLeft: Long?,
+        )
+    }
+
+    /**
+     * 展示で次の人に渡す前に、数えたものを全部捨てる。
+     *
+     * ルールそのものは残す。持ち時間・開いた回数・間隔・閉め出し・宣言・ポイントが
+     * 最初に戻れば、次の人は同じ順で同じものを見られる。
+     */
+    suspend fun demoReset() {
+        if (!initialized) return
+        usage.clearAll()
+        declarations.clearAll()
+        lockouts.clearAll()
+        points.clearAll()
+        overrideCounts = emptyMap()
     }
 
     /** 学習予定をでっちあげる。連携アプリ無しで、学習中・助走枠・中断を試すため。 */
@@ -1295,7 +1393,13 @@ object DopaRuntime {
         startScheduledFocusIfDue()
         applyPausesIfDue()
         noticeTrialsIfDue()
-        return if (batterySaverMode) SAVER_TICK_MS else ACTIVE_TICK_MS
+        return when {
+            // 宣言の持ち時間はここでしか減らない。1分が数秒のデモで毎分では、
+            // 「2分と宣言」が何十秒も切れない
+            TimeScale.isScaled -> DEMO_TICK_MS
+            batterySaverMode -> SAVER_TICK_MS
+            else -> ACTIVE_TICK_MS
+        }
     }
 
     // ---- お試しのルール ------------------------------------------------
@@ -1785,7 +1889,7 @@ object DopaRuntime {
 
         CommandKind.PASS -> {
             val minutes = command.params.int(CommandKind.KEY_MINUTES, 15)
-            settings.setPassUntil(System.currentTimeMillis() / 1000 + minutes * 60L)
+            settings.setPassUntil(System.currentTimeMillis() / 1000 + TimeScale.seconds(minutes))
             "${minutes}分の解禁券を使いました"
         }
 
@@ -1850,6 +1954,7 @@ object DopaRuntime {
     }
 
     private const val ACTIVE_TICK_MS = 60_000L
+    private const val DEMO_TICK_MS = 2_000L
     /**
      * 自動同期の間隔。
      *

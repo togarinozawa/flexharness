@@ -5,6 +5,7 @@ import com.dopachiru.core.engine.UsageSpans
 import com.dopachiru.core.engine.UsageWindows
 import com.dopachiru.core.engine.WindowUsage
 import com.dopachiru.core.time.ResetPolicy
+import com.dopachiru.core.time.TimeScale
 import com.dopachiru.data.db.UsageDao
 import com.dopachiru.data.db.UsageSessionEntity
 import kotlinx.coroutines.CoroutineScope
@@ -105,7 +106,7 @@ class UsageTracker(
 
         return object : UsageSnapshot {
             override val currentSessionMinutes: Int
-                get() = openStart?.let { ((nowSec - it) / 60).toInt().coerceAtLeast(0) } ?: 0
+                get() = openStart?.let { TimeScale.minutes(nowSec - it).coerceAtLeast(0) } ?: 0
 
             override fun usageMinutesIn(policy: ResetPolicy): Int {
                 val from = policy.periodStart(now).atZone(zone).toEpochSecond()
@@ -114,7 +115,7 @@ class UsageTracker(
                     val effectiveEnd = if (openStart != null && start == openStart) nowSec else end
                     (effectiveEnd - maxOf(start, from)).coerceAtLeast(0)
                 }
-                return (total / 60).toInt()
+                return TimeScale.minutes(total)
             }
 
             override fun sessionCountIn(policy: ResetPolicy): Int {
@@ -136,7 +137,7 @@ class UsageTracker(
                         .filter { (s, _) -> s < start }
                         .maxOfOrNull { (_, end) -> end }
                         ?: return null
-                    return ((start - previousEnd) / 60).toInt().coerceAtLeast(0)
+                    return TimeScale.minutes(start - previousEnd).coerceAtLeast(0)
                 }
         }
     }
@@ -204,7 +205,7 @@ class UsageTracker(
                 .filter { matches(it.packageName) && it !== open && it.startSec < reference }
                 .maxOfOrNull { it.endSec }
                 ?: return null
-            return ((reference - previousEnd) / 60).toInt().coerceAtLeast(0)
+            return TimeScale.minutes(reference - previousEnd).coerceAtLeast(0)
         }
     }
 
@@ -285,6 +286,21 @@ class UsageTracker(
     /** DB にある、そのアプリの使用区間。いつもの長さを出すのに使う。 */
     suspend fun storedSpans(packageName: String, sinceSec: Long): List<Pair<Long, Long>> =
         usageDao.sessionsSince(packageName, sinceSec).map { it.startEpochSec to it.endEpochSec }
+
+    /**
+     * 記録を全部捨てる。デモで次の人に渡す前に、持ち時間・開いた回数・間隔を戻すため。
+     *
+     * 開いている最中のものも閉じずに捨てる。次に前面が変わったとき(か、同じアプリの
+     * まま次の判定が来たとき)に新しく数え始める。DB は待ってから消す ── 先に返すと、
+     * 消す前に入った新しい行まで巻き込む。
+     */
+    suspend fun clearAll() {
+        synchronized(lock) {
+            sessions.clear()
+            current = null
+        }
+        usageDao.purgeBefore(Long.MAX_VALUE)
+    }
 
     suspend fun purgeOld() {
         usageDao.purgeBefore(nowSeconds() - PURGE_AFTER_SEC)

@@ -5,6 +5,7 @@ import com.dopachiru.core.condition.ConditionType
 import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 
 /**
@@ -84,8 +85,8 @@ object WindowBudgetCondition : ConditionType {
         if (evaluate(p, ctx)) return null
         val budget = p.int(KEY_BUDGET_MINUTES, 15)
         val usage = ctx.windowUsageOf(ctx.currentRuleId, p.int(KEY_WINDOW_MINUTES, 60))
-        if (!usage.open) return ctx.now.plusMinutes(budget.toLong())
-        val leftSeconds = budget * 60L - usage.usedSeconds
+        if (!usage.open) return TimeScale.after(ctx.now, budget.toLong())
+        val leftSeconds = TimeScale.seconds(budget) - usage.usedSeconds
         if (usage.remainingSeconds < leftSeconds) return null
         return ctx.now.plusSeconds(leftSeconds.coerceAtLeast(1))
     }
@@ -97,11 +98,11 @@ object WindowBudgetCondition : ConditionType {
     override fun nextChangeAt(p: Params, ctx: EvalContext): LocalDateTime {
         val budget = p.int(KEY_BUDGET_MINUTES, 15)
         val usage = ctx.windowUsageOf(ctx.currentRuleId, p.int(KEY_WINDOW_MINUTES, 60))
-        if (!usage.open) return ctx.now.plusMinutes(budget.toLong())
+        if (!usage.open) return TimeScale.after(ctx.now, budget.toLong())
 
         val remaining = budget - usage.usedMinutes
         // 使い切ったあとは、窓が明けるまで答えが変わらない
-        if (remaining <= 0) return ctx.now.plusMinutes(usage.remainingMinutes.toLong())
-        return ctx.now.plusMinutes(minOf(remaining, usage.remainingMinutes).toLong())
+        if (remaining <= 0) return TimeScale.after(ctx.now, usage.remainingMinutes.toLong())
+        return TimeScale.after(ctx.now, minOf(remaining, usage.remainingMinutes).toLong())
     }
 }

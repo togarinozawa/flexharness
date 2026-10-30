@@ -1,5 +1,7 @@
 package com.dopachiru.core.engine
 
+import com.dopachiru.core.time.TimeScale
+
 /**
  * 使用区間の並びから「休憩をはさむまでの使用時間」を数える。
  *
@@ -42,5 +44,5 @@ object UsageSpans {
 
     /** [secondsSinceBreak] を分で。切り捨てる。 */
     fun minutesSinceBreak(spans: List<Pair<Long, Long>>, breakMinutes: Int, nowSec: Long): Int =
-        (secondsSinceBreak(spans, breakMinutes * 60L, nowSec) / 60).toInt()
+        TimeScale.minutes(secondsSinceBreak(spans, TimeScale.seconds(breakMinutes), nowSec))
 }

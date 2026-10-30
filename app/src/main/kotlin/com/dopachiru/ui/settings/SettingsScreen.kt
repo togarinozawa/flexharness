@@ -838,6 +838,8 @@ private fun AboutSection(onOpenDevTools: () -> Unit) {
  */
 @Composable
 private fun UpdateCard() {
+    // デモ版は別のアプリなので、本番の更新を落としても上書きにならず、横に本番が増えるだけ
+    if (com.dopachiru.demo.DemoMode.enabled) return
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val state by AppUpdater.state.collectAsState()

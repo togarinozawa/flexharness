@@ -3,6 +3,7 @@ package com.dopachiru.core.gate
 import com.dopachiru.core.DopaFeatures
 import com.dopachiru.core.engine.CalendarState
 import com.dopachiru.core.time.ALL_DAYS
+import com.dopachiru.core.time.TimeScale
 import com.dopachiru.core.time.describeDays
 import com.dopachiru.core.time.formatMinuteOfDay
 import kotlinx.serialization.SerialName
@@ -150,7 +151,7 @@ object GatePolicy {
     ): List<Gate> = gates.filterNot { gate ->
         when (gate) {
             is Gate.Cooldown ->
-                Duration.between(createdAt, now).toMinutes() >= gate.minutes
+                Duration.between(createdAt, now).seconds >= TimeScale.seconds(gate.minutes)
 
             is Gate.TimeWindow -> gate.contains(now)
 

@@ -9,6 +9,7 @@ import com.dopachiru.core.engine.EvalContext
 import com.dopachiru.core.param.ParamSpec
 import com.dopachiru.core.param.Params
 import com.dopachiru.core.time.ResetPolicy
+import com.dopachiru.core.time.TimeScale
 import java.time.LocalDateTime
 
 /**
@@ -154,7 +155,7 @@ object UsageBudgetCondition : ConditionType {
         val budget = p.int(KEY_BUDGET_MINUTES, 120)
         if (budget <= 0 || evaluate(p, ctx)) return null
         val usage = ctx.budgetUsageOf(queryOf(p, ctx))
-        val leftSeconds = budget * 60L - usage.usedSeconds
+        val leftSeconds = TimeScale.seconds(budget) - usage.usedSeconds
         // 使い切る前に窓が明けるなら、このまま使っても閉じない
         if (usage.open && usage.remainingSeconds < leftSeconds) return null
         return ctx.now.plusSeconds(leftSeconds.coerceAtLeast(1))
@@ -169,8 +170,8 @@ object UsageBudgetCondition : ConditionType {
         val budget = p.int(KEY_BUDGET_MINUTES, 120)
         val usage = ctx.budgetUsageOf(queryOf(p, ctx))
         val remaining = budget - usage.usedMinutes
-        if (remaining <= 0) return ctx.now.plusMinutes(usage.remainingMinutes.toLong().coerceAtLeast(1))
-        if (!usage.open) return ctx.now.plusMinutes(remaining.toLong())
-        return ctx.now.plusMinutes(minOf(remaining, usage.remainingMinutes.coerceAtLeast(1)).toLong())
+        if (remaining <= 0) return TimeScale.after(ctx.now, usage.remainingMinutes.toLong().coerceAtLeast(1))
+        if (!usage.open) return TimeScale.after(ctx.now, remaining.toLong())
+        return TimeScale.after(ctx.now, minOf(remaining, usage.remainingMinutes.coerceAtLeast(1)).toLong())
     }
 }
